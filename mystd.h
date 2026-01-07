@@ -9,7 +9,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 #include "mydef.h"
 #include "mylog.h"
-#include "mypool.h"
 #include "myallocator.h"
 #define MYSTD_VERSION_MAJOR 0 
 #define MYSTD_VERSION_MINOR 1
