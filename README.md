@@ -1,4 +1,4 @@
-#MyStd
+# MyStd (by Noksek)
 ## UNSTABLE
 ## v0.1.0
 ## Apache License 2.0
