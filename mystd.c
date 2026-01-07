@@ -1,6 +1,6 @@
 
-/* Apache License 2.0
-https://github.com/Noksek2/MyAllocator Noksek2 v0.1.2
+/* Apache License 2.0 (See LICENSE file for details)
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.1.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
@@ -9,7 +9,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 void mystd_print_system_info() {
     const char* os_name = "Unknown OS";
     const char* cc_name = "Unknown Compiler";
-
     // 1. OS ∞·¡§
 #if MY_OS_WINDOWS
     os_name = "Windows";
@@ -28,7 +27,7 @@ void mystd_print_system_info() {
     cc_name = "Clang";
 #endif
 
-	puts("--- mystd system info ---");
+	puts("--- mystd system info (by Noksek2)---");
 	printf("Version\t\t: v%d.%d.%d\n", MYSTD_VERSION_MAJOR, MYSTD_VERSION_MINOR, MYSTD_VERSION_PATCH);
     printf("OS\t\t: %s\n", os_name);
     printf("Compiler\t: %s\n", cc_name);
@@ -38,5 +37,5 @@ void mystd_print_system_info() {
 #elif MY_ARCH_ARM
     puts("Arch\t\t: ARM");
 #endif
-    puts("-------------------------");
+    puts("-------------------------------------");
 }

@@ -1,6 +1,6 @@
 
-/* Apache License 2.0
-https://github.com/Noksek2/MyAllocator Noksek2 v0.1.2
+/* Apache License 2.0 (See LICENSE file for details)
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.1.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
@@ -27,6 +27,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 /*OS*/
 #if defined(_WIN32) || defined(_WIN64)  || defined(__CYGWIN__)
 #define MY_OS_WINDOWS 1
+#define MY_OS_WIN MY_OS_WINDOWS
 #elif defined(__linux__) || defined(__gnu_linux__)
 #define MY_OS_LINUX 1
 #elif defined(__APPLE__) || defined(__MACH__)
@@ -47,27 +48,33 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 /*def by compiler*/
 #if MY_COMPILER_MSVC
-#define MY_INLINE __inline
+#define INLINE __inline
 #define RESTRICT __restrict  // for MSVC
 #define MY_ALIGN(n) __declspec(align(n))
 
-
 #else
-#define MY_INLINE inline
+#define INLINE inline
 #define RESTRICT __restrict  // for GCC/Clang	
 #define MY_ALIGN(n) __attribute__((aligned(n)))
 
 #endif
+
+
 
 #if MY_COMPILER_MSVC || MY_COMPILER_GCC
 #elif 
 #define RESTRICT restrict
 #endif
 
-#ifdef __cplusplus
-#define MY_EXTERN_C extern "C"
-#else
-#define MY_EXTERN_C extern
+#ifdef __cplusplus 
+	#define MY_EXTERN_START extern "C" {
+	#define MY_EXTERN_END }
+#else 
+	#define MY_EXTERN_START 
+	#define MY_EXTERN_END
 #endif
+
+
+
 
 #endif //__MYDEF_H__
