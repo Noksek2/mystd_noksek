@@ -1,14 +1,13 @@
 # MyStd (by Noksek)
-## UNSTABLE
-## v0.1.0
+## v0.1.1 (UNSTABLE)
 ## Apache License 2.0
 ## Function/Macro lists
 ### mystd.h
 ```c
-/*mystd v0.1.0*/
+/*mystd v0.1.1*/
 #define MYSTD_VERSION_MAJOR 0 
 #define MYSTD_VERSION_MINOR 1
-#define MYSTD_VERSION_PATCH 0
+#define MYSTD_VERSION_PATCH 1
 ```
 - `void mystd_print_system_info()`
 
@@ -92,7 +91,7 @@ $ ./mystd_test
 [INFO] free block id:9 [7F772FCF2000]..
 [INFO] free block id:10 [7F772F82D000]..
 --- mystd system info (by Noksek2)---
-Version         : v0.1.0
+Version         : v0.1.1
 OS              : Linux
 Compiler        : GCC
 Arch            : x64
