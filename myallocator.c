@@ -17,7 +17,7 @@ static INLINE myarena* _arena_alloc(mysize_t size) {
 		NULL,
 		size + sizeof(myarena),
 		MEM_COMMIT | MEM_RESERVE,
-		PAGE_EXECUTE_READWRITE
+		PAGE_READWRITE
 	);
 	MY_ASSERT(mem != NULL);
 #elif MY_OS_LINUX
