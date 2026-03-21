@@ -1,26 +1,48 @@
 # MyStd (by Noksek)
-## v0.1.1 (UNSTABLE)
+## v0.2.0 (dev branch)
+- unstable yet.
 ## Apache License 2.0
 ## Function/Macro lists
 ### mystd.h
 ```c
-/*mystd v0.1.1*/
+/*mystd v0.2.0*/
 #define MYSTD_VERSION_MAJOR 0 
-#define MYSTD_VERSION_MINOR 1
-#define MYSTD_VERSION_PATCH 1
+#define MYSTD_VERSION_MINOR 2
+#define MYSTD_VERSION_PATCH 0
+
+
+typedef uint64_t myclock_t;
 ```
 - `void mystd_print_system_info()`
+- `myclock_t myclock_setclock()`
+- `double    myclock_getsec(myclock_t timer)`
 
 ### myallocator.h
-- `void  allocator_new(myallocator* alc, mysize_t arena_size)`
-- `void* allocator_alloc(myallocator* alc, mysize_t len)`
-- `void 	allocator_free(myallocator* alc)`
-- `void  allocator_reset(myallocator* alc)`
-- `void 	allocator_check(myallocator* alc, myarena_check* checkpoint)`
-- `void 	allocator_rewind(myallocator* alc, myarena_check* checkpoint)`
-- `void* allocator_realloc(myallocator* alc, void* p, mysize_t old_capa, mysize_t new_capa)`
+
+- `void  myarean_new   (myarena* alc, mysize_t arena_size)`
+- `void* myarean_alloc (myarena* alc, mysize_t len)`
+- `void  myarean_free  (myarena* alc)`
+- `void  myarean_reset (myarena* alc)`
+- `void  myarean_check_new (myarena* alc, myarena_check* checkpoint)`
+- `void  myarean_rewind (myarena* alc, myarena_check* checkpoint)`
+- `void* myarean_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa)`
 
 - `ALLOCATOR_ALLOC(ALC, T, SZ)`
+
+- pool
+```
+typedef enum {
+	POOLMAP_SIZE = 32,
+	POOL_8B = 0,
+	POOL_16B, POOL_24B,
+	POOL_32B, POOL_40B, POOL_48B, POOL_52B,
+	POOL_64B, POOL_80B, POOL_96B, POOL_112B,
+	POOL_128B, POOL_160B, POOL_192B, POOL_224B,
+	POOL_256B, POOL_320B, POOL_384B, POOL_448B,
+	POOL_512B,
+	...
+} mypoolsize_t
+```
 
 ### mylog.h
 - `MY_LOG_LEVEL`, `MY_LOG_LEVEL_OFF`, `MY_LOG_LEVEL_ERROR`, `MY_LOG_LEVEL_INFO`
@@ -35,66 +57,10 @@
 - `INLINE`, `RESTRICT`, `MY_ALIGN(n)`
 - `MY_EXTERN_START`, `MY_EXTERN_END`
 
-### main.c (example)
-```c
-#include "mystd.h"
-int main() {
-	myallocator alc;
-	allocator_new(&alc, 1000);
-	for(volatile int i=0;i< 10;i++)
-		allocator_alloc(&alc, 5000000);
-	allocator_free(&alc);
-	mystd_print_system_info();
-	return 0;
-}
-```
 
-- result
 
-```
-CC = gcc
-CFLAGS = -O2 -D_DEBUG
-TARGET = mystd_test
-SRCS = mystd.c myallocator.c main.c
+## HOW TO USE?
+- CHECK the sample(main.c) please
 
-all: $(TARGET)
 
-$(TARGET): $(SRCS)
-        $(CC) $(CFLAGS) -o $(TARGET) $(SRCS)
-clean:
-        rm -f $(TARGET)
-```
-
-```
-$ make
-$ ./mystd_test
-[INFO] new allocator [7F77329DF000](1000)
-[INFO] full! new allocator id:1 [7F773231A000], Done [7F773231A018]
-[INFO] full! new allocator id:2 [7F7731E55000], Done [7F7731E55018]
-[INFO] full! new allocator id:3 [7F7731990000], Done [7F7731990018]
-[INFO] full! new allocator id:4 [7F77314CB000], Done [7F77314CB018]
-[INFO] full! new allocator id:5 [7F7731006000], Done [7F7731006018]
-[INFO] full! new allocator id:6 [7F7730B41000], Done [7F7730B41018]
-[INFO] full! new allocator id:7 [7F773067C000], Done [7F773067C018]
-[INFO] full! new allocator id:8 [7F77301B7000], Done [7F77301B7018]
-[INFO] full! new allocator id:9 [7F772FCF2000], Done [7F772FCF2018]
-[INFO] full! new allocator id:10 [7F772F82D000], Done [7F772F82D018]
-[INFO] free block id:0 [7F77329DF000]..
-[INFO] free block id:1 [7F773231A000]..
-[INFO] free block id:2 [7F7731E55000]..
-[INFO] free block id:3 [7F7731990000]..
-[INFO] free block id:4 [7F77314CB000]..
-[INFO] free block id:5 [7F7731006000]..
-[INFO] free block id:6 [7F7730B41000]..
-[INFO] free block id:7 [7F773067C000]..
-[INFO] free block id:8 [7F77301B7000]..
-[INFO] free block id:9 [7F772FCF2000]..
-[INFO] free block id:10 [7F772F82D000]..
---- mystd system info (by Noksek2)---
-Version         : v0.1.1
-OS              : Linux
-Compiler        : GCC
-Arch            : x64
--------------------------------------
-```
 ###

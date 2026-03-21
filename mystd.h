@@ -41,6 +41,13 @@ static double myclock_getsec(myclock_t timer) {
     return (double)clock / (double)timer;
     
 }
+static myclock_t _myclock_getnanosec(myclock_t timer) {
+    myclock_t clock;
+    QueryPerformanceCounter(&clock);
+    return (myclock_t)(((double)clock / (double)timer) * 1000000000.0);
+
+    //return (double)clock / (double)timer;
+}
 #elif MY_OS_LINUX
 static myclock_t myclock_setclock() {
     return 0;
@@ -51,7 +58,7 @@ static double myclock_getsec(myclock_t timer) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
     //return (double)clock / (double)timer;
 }
-static int myclock_getnanosec(myclock_t timer) {
+static int _myclock_getnanosec(myclock_t timer) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     return ts.tv_nsec;
