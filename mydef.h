@@ -1,11 +1,16 @@
 
 /* Apache License 2.0 (See LICENSE file for details)
-https://github.com/Noksek2/mystd_noksek Noksek2 v0.1.0
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
 #ifndef __MYDEF_H__
 #define __MYDEF_H__
+
+
+#include <stdio.h>
+#include <stdint.h>
+#include <memory.h>
 
 /*compiler*/
 
@@ -76,5 +81,15 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 
 
+#ifndef max
+#define max(A,B) ((A>B)?(A):(B))
+#endif
+
+#ifndef min
+#define min(A,B) ((A>B)?(B):(A))
+#endif
+
+
+typedef uint32_t mysize_t;
 
 #endif //__MYDEF_H__

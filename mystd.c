@@ -1,11 +1,10 @@
 
 /* Apache License 2.0 (See LICENSE file for details)
-https://github.com/Noksek2/mystd_noksek Noksek2 v0.1.0
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
 #include "mystd.h"
-#include <stdio.h>
 void mystd_print_system_info() {
     const char* os_name = "Unknown OS";
     const char* cc_name = "Unknown Compiler";

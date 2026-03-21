@@ -1,10 +1,10 @@
 #include "mystd.h"
 int main() {
-	myallocator alc;
-	allocator_new(&alc, 1000);
+	myarena alc;
+	arena_new(&alc, 1000);
 	for(volatile int i=0;i< 10;i++)
-		allocator_alloc(&alc, 5000000);
-	allocator_free(&alc);
+		arena_alloc(&alc, 5000000);
+	arena_free(&alc);
 	mystd_print_system_info();
 	return 0;
 }

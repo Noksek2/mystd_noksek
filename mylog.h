@@ -1,6 +1,6 @@
 
 /* Apache License 2.0 (See LICENSE file for details)
-https://github.com/Noksek2/mystd_noksek Noksek2 v0.1.0
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
@@ -9,8 +9,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 #include "mydef.h"
 
-#include <stdio.h>
-#include <stdlib.h>
 
 #define MY_LOG_LEVEL_OFF 0
 #define MY_LOG_LEVEL_ERROR 1
