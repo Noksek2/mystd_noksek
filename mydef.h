@@ -1,4 +1,4 @@
-
+﻿
 /* Apache License 2.0 (See LICENSE file for details)
 https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
 Is there any problem in this code, Please use Issues for bug reports.
@@ -11,6 +11,8 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include <stdio.h>
 #include <stdint.h>
 #include <memory.h>
+#include <time.h>
+#include <stdlib.h>
 
 /*compiler*/
 

@@ -130,7 +130,7 @@ typedef enum {
 	POOL_2GB,
 	POOL_4GB,
 	*/
-};
+} mypoolsize_t;
 
 /*
 typedef struct mypool_head {
@@ -193,7 +193,7 @@ typedef struct {
 	mypool* poollist;
 } mypoolmanager;
 
-static void mypool_new() {
+static void mypool_new(uint32_t elem_memsize) {
 
 }
 static void mypool_alloc() {
