@@ -92,6 +92,17 @@ Is there any problem in this code, Please use Issues for bug reports.
 #endif
 
 
+
+#if MY_OS_WIN
+#include <Windows.h>
+#elif MY_OS_LINUX
+#include <sys/mman.h>
+#include <sys/time.h>
+#endif
+
 typedef uint32_t mysize_t;
+typedef int64_t myclock_t;
+
+
 
 #endif //__MYDEF_H__

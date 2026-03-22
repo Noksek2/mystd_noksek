@@ -10,14 +10,14 @@ Is there any problem in this code, Please use Issues for bug reports.
 size_t g_id = 0u;
 #endif
 
-static mypage* _malloc(mysize_t size) {
-	return (mypage*)myvalloc(size+sizeof(mypage));
-}
 
 /*arena allocator*/
 void myarena_new(myarena* alc, mysize_t arena_size) {
-	mypage* arena = _malloc(arena_size);
+	mypage* arena = mymem_reserve(arena_size);
+	mymem_commit(arena, arena_size);
+
 	arena->capa = arena_size;
+
 	alc->arena_size = arena_size;
 	alc->current = arena;
 	alc->head = arena;
@@ -29,12 +29,8 @@ void myarena_new(myarena* alc, mysize_t arena_size) {
 }
 
 void* myarena_alloc(myarena* alc, mysize_t append_len) {
-	/*
-	1. just move pointer (arena->len + append_len <= arena->capa)
-	2-1. next ptr (=<next->capa)
-	2-2. new ptr (new_arena->next=arena->next, arena->next=new_arena)
 
-	*/
+	// debugbreak if append_len is 0
 	MY_ASSERT(append_len != 0);
 
 	void* ptr = NULL;
@@ -62,12 +58,17 @@ void* myarena_alloc(myarena* alc, mysize_t append_len) {
 	//arena->next ==0 || append_len > arena->next->capa 
 	if (ptr==NULL) {
 		mysize_t new_size = max(alc->arena_size, padding);
-		mypage* new_arena = _malloc(new_size);
+		mypage* new_arena = mymem_reserve(new_size);
+		MY_ASSERT(mymem_commit(new_arena, new_size) != NULL);
+		
 		new_arena->len = padding;
 		new_arena->capa = new_size;
 		new_arena->next = arena->next;
+
 		arena->next = new_arena;
+
 		alc->current = new_arena;
+
 		ptr = alc->current->ptr;
 #ifdef _DEBUG
 		alc->current->id = g_id++;
@@ -110,7 +111,7 @@ void myarena_free(myarena* alc) {
 	while (now != NULL) {
 		next = now->next;
 		MY_LOG_INFO("free block id:%llu [%llX]..", now->id, (uint64_t)now);
-		myvfree(now, now->capa + sizeof(mypage));
+		mymem_release(now, now->capa + sizeof(mypage));
 		now = next;
 	}
 	alc->head = 0;

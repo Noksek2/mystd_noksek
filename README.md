@@ -30,7 +30,7 @@ typedef uint64_t myclock_t;
 - `ALLOCATOR_ALLOC(ALC, T, SZ)`
 
 - pool
-```
+```c
 typedef enum {
 	POOLMAP_SIZE = 32,
 	POOL_8B = 0,

@@ -10,16 +10,11 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include "mydef.h"
 #include "mylog.h"
 #include "myallocator.h"
-#if MY_OS_LINUX
 
-#include <sys/time.h>
-#endif
 
 #define MYSTD_VERSION_MAJOR 0 
 #define MYSTD_VERSION_MINOR 2
 #define MYSTD_VERSION_PATCH 0
-
-typedef int64_t myclock_t;
 
 
 MY_EXTERN_START
@@ -27,7 +22,7 @@ extern void mystd_print_system_info();
 #if MY_OS_WINDOWS
 static myclock_t myclock_setclock() {
     myclock_t timer;
-    QueryPerformanceFrequency(&timer);
+    QueryPerformanceFrequency((LARGE_INTEGER*)&timer);
     return timer;
 }
 /*static myclock_t myclock_getclock() {
@@ -37,13 +32,13 @@ static myclock_t myclock_setclock() {
 }*/
 static double myclock_getsec(myclock_t timer) {
     myclock_t clock;
-    QueryPerformanceCounter(&clock);
+    QueryPerformanceCounter((LARGE_INTEGER*)&clock);
     return (double)clock / (double)timer;
     
 }
 static myclock_t _myclock_getnanosec(myclock_t timer) {
     myclock_t clock;
-    QueryPerformanceCounter(&clock);
+    QueryPerformanceCounter((LARGE_INTEGER*) & clock);
     return (myclock_t)(((double)clock / (double)timer) * 1000000000.0);
 
     //return (double)clock / (double)timer;
@@ -65,17 +60,6 @@ static int _myclock_getnanosec(myclock_t timer) {
     //return (double)clock / (double)timer;
 }
 #endif
-/*
-
-
-#endif
-MY_OS_LINUX
- struct timespec ts;
-
-    // Use CLOCK_REALTIME for wall-clock time
-    clock_gettime(CLOCK_REALTIME, &ts);
-    printf("Realtime: %ld seconds, %ld nanoseconds\\n", ts.tv_sec, ts.tv_nsec);
-*/
 MY_EXTERN_END
 
 #endif

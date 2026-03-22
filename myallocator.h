@@ -9,64 +9,140 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 #include "mylog.h"
 
-#if MY_OS_WIN
-#include <Windows.h>
-#elif MY_OS_LINUX
-#include <sys/mman.h>
-#endif
 
-#define _1KB (1024)
-#define _4KB (4096)
-#define _1MB (1024*1024)
-#define _4MB (4096*1024)
 
 #define ARENA_1KB (1024-sizeof(mypage))
 #define ARENA_4KB (1024*4-sizeof(mypage))
+#define ARENA_64KB (1024*64-sizeof(mypage))
 
 #define ARENA_1MB (1024*1024-sizeof(mypage))
 #define ARENA_4MB (1024*1024*4-sizeof(mypage))
+#define ARENA_64MB (1024*1024*64-sizeof(mypage))
 
 #define ARENA_ALLOC(ALC, T, SZ) (T*)arena_alloc(ALC,sizeof(T)*(SZ))
 
+typedef enum {
+	_8B = 8,
+	_16B = 16,
+	_32B = 32,
+	_64B = 64,
+	_128B = 128,
+	_256B = 256,
+	_512B = 512,
 
-#define MYVALLOC(T, SZ) (T*)myvalloc(sizeof(T)*(SZ))
-#define MYVFREE(T, V, SZ) myvfree(V,sizeof(T)*(SZ))
+	_1KB = (1024),
+	_2KB = _1KB * 2,
+	_4KB = _1KB * 4,
+	_8KB = _1KB * 8,
+	_16KB = _1KB * 16,
+	_32KB = _1KB * 32,
+	_64KB = _1KB * 64,
+	_128KB = _1KB * 128,
+	_256KB = _1KB * 256,
+	_512KB = _1KB * 512,
 
-static void* myvalloc(mysize_t capa) {
+	_1MB = (1024 * 1024),
+	_2MB = _1MB * 2,
+	_4MB = _1MB * 4,
+	_8MB = _1MB * 8,
+
+	PAGE_SIZE=_4KB,
+};
+
+/*
+
+#include <windows.h>
+#include <stdio.h>
+
+int main() {
+	SIZE_T size = 1024 * 1024; // 1MB
+
+	// 1. Reserve: 주소 공간만 1MB 확보 (물리 메모리 점유 X)
+	void* pReserved = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+	if (!pReserved) return 1;
+
+	// 2. Commit: 실제로 쓸 공간만큼 물리 메모리 할당 (여기서는 전체 1MB)
+	void* pCommitted = VirtualAlloc(pReserved, size, MEM_COMMIT, PAGE_READWRITE);
+
+	// 3. Protection 변경: 읽기 전용으로 변경해보기 (PAGE_READWRITE -> PAGE_READONLY)
+	DWORD oldProtect;
+	if (VirtualProtect(pCommitted, size, PAGE_READONLY, &oldProtect)) {
+		printf("보호 모드 변경 성공: Read-Only\n");
+		// *pCommitted = 'A'; // 만약 여기서 쓰기를 시도하면 Access Violation 발생!
+	}
+
+	// 4. Release: 주소 공간 통째로 반납
+	// 주의: MEM_RELEASE는 반드시 size를 0으로 주고, Reserve된 시작 주소를 넘겨야 함
+	VirtualFree(pReserved, 0, MEM_RELEASE);
+
+	return 0;
+}
+
+#include <sys/mman.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main() {
+	size_t size = 1024 * 1024; // 1MB
+
+	// 1. Reserve: PROT_NONE(접근 권한 없음)으로 설정하여 주소 공간만 확보
+	void* p = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (p == MAP_FAILED) return 1;
+
+	// 2. Commit: mprotect를 사용하여 권한을 부여 (실제 물리 메모리 매핑 유도)
+	// 리눅스는 이 시점에 실제 접근(Write)이 일어날 때 페이지를 할당함 (Lazy Allocation)
+	mprotect(p, size, PROT_READ | PROT_WRITE);
+
+	// 3. Protection 변경: 읽기 전용으로 (PROT_READ | PROT_WRITE -> PROT_READ)
+	mprotect(p, size, PROT_READ);
+
+	// 4. Release: 메모리 해제
+	munmap(p, size);
+
+	return 0;
+}
+*/
 #if MY_OS_WINDOWS
+static void* mymem_reserve(mysize_t capa) {
+	//capa = ((capa - 1) / (_1KB * 64) + 1) * (_1KB * 64);
 	void* mem = VirtualAlloc(
 		NULL,
 		capa,
-		MEM_COMMIT | MEM_RESERVE,
-		PAGE_READWRITE
+		MEM_RESERVE,
+		PAGE_NOACCESS
 	);
 	MY_ASSERT(mem != NULL);
-#elif MY_OS_LINUX
-	void* mem = mmap(
-		NULL,
-		capa,
-		PROT_READ | PROT_WRITE,
-		MAP_PRIVATE | MAP_ANONYMOUS,
-		-1,
-		0
-	);
-	MY_ASSERT(mem != MAP_FAILED);
-#else
-	void* mem = (mypage*)calloc(capa, 1);
-	MY_ASSERT(mem != NULL);
-#endif
 	return mem;
 }
-static void myvfree(void* mem, mysize_t capa) {
-#if MY_OS_WINDOWS
-	VirtualFree(mem, 0, MEM_RELEASE);
-#elif MY_OS_LINUX
-	munmap(mem, capa);
-#else
-	free(mem);
-#endif
+static void* mymem_commit(void* mem, mysize_t capa) {
+	mem = VirtualAlloc(
+		mem,
+		capa,
+		MEM_COMMIT,
+		PAGE_READWRITE
+	);
+	//MY_ASSERT(mem != NULL);
+	return mem;
 }
-
+static void mymem_release(void* mem, mysize_t capa) {
+	VirtualFree(mem, 0, MEM_RELEASE);
+}
+#elif MY_OS_LINUX
+static void* mymem_reserve(mysize_t capa) {
+	//capa = ((capa - 1) / (_1KB * 64) + 1) * (_1KB * 64);
+	void* mem = mmap(NULL, capa, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	MY_ASSERT(p == MAP_FAILED);
+	return mem;
+}
+static void* mymem_commit(void* mem, mysize_t capa) {
+	mprotect(mem, capa, PROT_READ | PROT_WRITE);
+	return mem;
+}
+static void mymem_release(void* mem, mysize_t capa) {
+	munmap(mem, capa);
+}
+#else
+#endif
 
 #ifdef _DEBUG
 extern size_t g_id;
@@ -82,12 +158,19 @@ typedef struct mypage {
 	uint8_t ptr[];
 }mypage;
 
+typedef struct {
+	mypage* blocklist;
+	mypage* freelist;
+	mysize_t allocsize;//now memory
+	uint8_t defaultsize;//pow 2 basic:64KB
+	uint8_t threshold;//pow 2 1<<32=4GB
+} myglobalmemory;
+
 typedef struct myarena_check {
 	mypage* tail;
 	mypage* head;
 	mysize_t len;
 }myarena_check;
-
 typedef struct myarena {
 	mypage* head;
 	mypage* current;
@@ -96,10 +179,17 @@ typedef struct myarena {
 
 typedef enum {
 	POOLMAP_SIZE = 32,
-	POOL_8B = 0,
-	POOL_16B, POOL_24B,
-	POOL_32B, POOL_40B, POOL_48B, POOL_52B,
-	POOL_64B, POOL_80B, POOL_96B, POOL_112B,
+	POOL_8B = 0,//128 (1024)
+	POOL_16B, //64 (1024)
+	POOL_24B, //42 (1008)
+	POOL_32B,//32 (1024)
+	POOL_40B, //25 (1000)
+	POOL_48B, //21 (1000)
+	POOL_52B, //19 (988)
+	POOL_64B, //16 (1024)
+	POOL_80B, 
+	POOL_96B, 
+	POOL_112B,
 	POOL_128B, POOL_160B, POOL_192B, POOL_224B,
 	POOL_256B, POOL_320B, POOL_384B, POOL_448B,
 	POOL_512B,
@@ -209,6 +299,8 @@ static void mypool_destroy() {
 }
 
 MY_EXTERN_START
+myglobalmemory g_mymemory;
+extern void  myarena_new_frompage(mypage* page, myarena* alc, mysize_t arena_size);
 extern void  myarena_new(myarena* alc, mysize_t arena_size);
 extern void* myarena_alloc(myarena* alc, mysize_t len);
 extern void  myarena_free(myarena* alc);
