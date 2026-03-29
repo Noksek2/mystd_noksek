@@ -59,7 +59,8 @@ void* myarena_alloc(myarena* alc, mysize_t append_len) {
 	if (ptr==NULL) {
 		mysize_t new_size = max(alc->arena_size, padding);
 		mypage* new_arena = mymem_reserve(new_size);
-		MY_ASSERT(mymem_commit(new_arena, new_size) != NULL);
+		new_arena = mymem_commit(new_arena, new_size);
+		MY_ASSERT(new_arena != NULL);
 		
 		new_arena->len = padding;
 		new_arena->capa = new_size;
@@ -78,7 +79,7 @@ void* myarena_alloc(myarena* alc, mysize_t append_len) {
 	return ptr;
 	//arena_alloc(alc->head, len);
 }
-void myarena_reset(myarena* alc) {
+void myarena_reset_all(myarena* alc) {
 	alc->head->len = 0;
 	alc->current = alc->head;
 }
@@ -129,7 +130,9 @@ void myarena_check_new(myarena* alc, myarena_check* checkpoint) {
 void* myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa) {
 	uint8_t* arena_ptr = (alc->current->ptr + alc->current->len);
 
-	if ((arena_ptr == (uint8_t*)p + old_capa) && (new_capa <= alc->current->capa)) {
+	if ((arena_ptr == (uint8_t*)p + old_capa) 
+		&& (arena_ptr + new_capa <= alc->current->capa)) {
+		alc->current->len += new_capa;
 		return arena_ptr;
 	}
 	return myarena_alloc(alc, new_capa);

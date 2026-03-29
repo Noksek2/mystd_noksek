@@ -304,7 +304,7 @@ extern void  myarena_new_frompage(mypage* page, myarena* alc, mysize_t arena_siz
 extern void  myarena_new(myarena* alc, mysize_t arena_size);
 extern void* myarena_alloc(myarena* alc, mysize_t len);
 extern void  myarena_free(myarena* alc);
-extern void  myarena_reset(myarena* alc);
+extern void  myarena_reset_all(myarena* alc);
 extern void  myarena_check_new(myarena* alc, myarena_check* checkpoint);
 extern void  myarena_rewind(myarena* alc, myarena_check* checkpoint);
 extern void* myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa);
