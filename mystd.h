@@ -15,10 +15,27 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define MYSTD_VERSION_MAJOR 0 
 #define MYSTD_VERSION_MINOR 2
 #define MYSTD_VERSION_PATCH 0
-
+#define MYSTD_VERSION (MYSTD_VERSION_MAJOR*10000\
+    +MYSTD_VERSION_MINOR*100 \
+    +MYSTD_VERSION_PATCH)
 
 MY_EXTERN_START
 extern void mystd_print_system_info();
+#if MY_COMPILER_MSVC
+static uint32_t find_msb32_idx(uint32_t mask) {
+    DWORD index;
+    return _BitScanReverse(&index, (DWORD)mask) ? (uint32_t)index : 0u;
+}
+static uint32_t find_msb64_idx(uint64_t mask) {
+    DWORD index;
+    return _BitScanReverse64(&index, (DWORD64)mask) ? (uint32_t)index : 0u;
+}
+#else 
+static uint32_t find_msb32_idx(uint32_t mask) {
+    if (mask == 0) return 0;
+    return 31 - __builtin_clz(mask);
+}
+#endif
 #if MY_OS_WINDOWS
 static myclock_t myclock_setclock() {
     myclock_t timer;

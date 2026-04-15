@@ -35,7 +35,7 @@ void* myarena_alloc(myarena* alc, mysize_t append_len) {
 
 	void* ptr = NULL;
 	mypage* arena = alc->current;
-	mysize_t padding = ((append_len - 1) / sizeof(uint64_t) + 1) * sizeof(uint64_t);
+	mysize_t padding = GET_PADDING(append_len);
 	//MY_LOG_INFO("try id:%llu [%llX] alloc(%d,%d)... ", arena->id, (uint64_t)arena, append_len, padding, arena->capa);
 
 	if (arena->len + append_len <= arena->capa) {

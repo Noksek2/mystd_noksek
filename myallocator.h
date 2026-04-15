@@ -9,8 +9,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 #include "mylog.h"
 
-
-
 #define ARENA_1KB (1024-sizeof(mypage))
 #define ARENA_4KB (1024*4-sizeof(mypage))
 #define ARENA_64KB (1024*64-sizeof(mypage))
@@ -20,6 +18,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define ARENA_64MB (1024*1024*64-sizeof(mypage))
 
 #define ARENA_ALLOC(ALC, T, SZ) (T*)arena_alloc(ALC,sizeof(T)*(SZ))
+#define GET_PADDING(LEN) (((max(1,(LEN)) - 1) / sizeof(uint64_t) + 1) * sizeof(uint64_t))
 
 typedef enum {
 	_8B = 8,
@@ -148,13 +147,14 @@ static void mymem_release(void* mem, mysize_t capa) {
 extern size_t g_id;
 #endif
 
-typedef struct mypage {
+//using for pool and arena
+typedef struct mypage { 
 	struct mypage* next;
 #ifdef _DEBUG
 	size_t id;
 #endif
-	mysize_t len;
-	mysize_t capa;
+	mysize_t len; //current used page
+	mysize_t capa;//page size
 	uint8_t ptr[];
 }mypage;
 
@@ -178,7 +178,7 @@ typedef struct myarena {
 }myarena;
 
 typedef enum {
-	POOLMAP_SIZE = 32,
+	POOL_SIZE_MAX = 32,
 	POOL_8B = 0,//128 (1024)
 	POOL_16B, //64 (1024)
 	POOL_24B, //42 (1008)
@@ -190,16 +190,16 @@ typedef enum {
 	POOL_80B, 
 	POOL_96B, 
 	POOL_112B,
-	POOL_128B, POOL_160B, POOL_192B, POOL_224B,
-	POOL_256B, POOL_320B, POOL_384B, POOL_448B,
-	POOL_512B,
+	POOL_128B, POOL_192B, //POOL_160B, POOL_192B, POOL_224B,
+	POOL_256B, POOL_384B, //POOL_320B, POOL_384B, POOL_448B,
+	POOL_512B, POOL_768B, //POOL_640B, POOL_768B, POOL_896B,
 	/*
-	POOL_1KB,
-	POOL_2KB,
-	POOL_4KB,
-	POOL_8KB,
-	POOL_16KB,20 24 28
-	POOL_32KB,40 48 56
+	POOL_1KB,POOL_1_5KB,
+	POOL_2KB,POOL_3KB,
+	POOL_4KB,POOL_6KB,
+	POOL_8KB,POOL_12KB,
+	POOL_16KB,POOL_24KB,
+	POOL_32KB,POOL_48KB,
 	POOL_64KB,
 	POOL_128KB,
 	POOL_256KB,
@@ -257,19 +257,28 @@ typedef struct mypoolmanager {
 	//8byte : 8byte<<0, 16byte:8byte<<1 ...512byte:8byte<<6
 	// 512KB : 8<<16
 }mypoolmanager;//8
-
-
 */
 
 
 typedef struct myfreepool {
 	struct myfreepool* next;
 } myfreepool;
+
+typedef struct mypoolpage {
+	struct mypoolpage* next;
+	uint32_t len;
+	uint16_t capa;
+	uint16_t empty;
+	uint8_t ptr[];
+} mypoolpage;
+//8   16  24, 32, 40, 48, 52, 64=64KB
+//512 256 
+
 typedef struct {
 	//64
-	myfreepool* freelist;
+	struct myfreepool* freepool;
 	//64
-	uint8_t** blocklist;
+	mypage* blocklist;
 	//64
 	uint32_t elem_memsize; //4GB = 32
 	uint32_t blocklist_cnt;
@@ -277,7 +286,7 @@ typedef struct {
 	uint16_t elem_maxcnt; //4GB = 32
 	uint16_t elem_idx; //655.. 
 	uint16_t block_idx; //4KB 4*1KB= * 655..
-	uint16_t _;
+	uint8_t ptr[];
 } mypool;
 typedef struct {
 	mypool* poollist;
@@ -300,7 +309,42 @@ static void mypool_destroy() {
 
 MY_EXTERN_START
 myglobalmemory g_mymemory;
-extern void  myarena_new_frompage(mypage* page, myarena* alc, mysize_t arena_size);
+
+/*
+mypoolmanager{
+	RESERVED // basic : 4MB -> release/decommit 안 함. thread 마다 하나씩 있음.
+
+	//64KB -> 4KB * 16
+	SmallManager
+	//64KB -> owner
+	Middle
+	NormalManager
+	BigManager
+
+	sizepool[8B 16B 24B ... ]
+	Threshold POOL_THREADHOLD_MAX
+	VMEM_THRESHOLD_MAX_DEFAULT=128MB
+}
+poolblocklist{
+	//from pool memory manager
+	VMEM [  64KB |  64KB      ]
+	S_MNG [1:4KB | 2:4KB | :64KB] ->
+
+	8B BLOCKLIST :
+	1[] -> 9[] -> 10[] ...
+	512B BLOCKLIST
+	11[]->12[]
+	BLOCKsdfsdfd
+}*/
+
+
+
+typedef struct mypoolblock {
+	struct mypoolblock* ptr;
+	//int i;
+}mypoolblock;
+
+//extern void  myarena_new_frompage(mypage* page, myarena* alc, mysize_t arena_size);
 extern void  myarena_new(myarena* alc, mysize_t arena_size);
 extern void* myarena_alloc(myarena* alc, mysize_t len);
 extern void  myarena_free(myarena* alc);

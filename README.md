@@ -22,7 +22,7 @@ typedef uint64_t myclock_t;
 - `void  myarean_new   (myarena* alc, mysize_t arena_size)`
 - `void* myarean_alloc (myarena* alc, mysize_t len)`
 - `void  myarean_free  (myarena* alc)`
-- `void  myarean_reset (myarena* alc)`
+- `void  myarean_reset_all (myarena* alc)`
 - `void  myarean_check_new (myarena* alc, myarena_check* checkpoint)`
 - `void  myarean_rewind (myarena* alc, myarena_check* checkpoint)`
 - `void* myarean_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa)`
