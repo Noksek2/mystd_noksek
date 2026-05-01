@@ -1,4 +1,4 @@
-
+Ôªø//260427-1
 /* Apache License 2.0 (See LICENSE file for details)
 https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
 Is there any problem in this code, Please use Issues for bug reports.
@@ -8,7 +8,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 void mystd_print_system_info() {
     const char* os_name = "Unknown OS";
     const char* cc_name = "Unknown Compiler";
-    // 1. OS ∞·¡§
+    // 1. OS Í≤∞Ï†ï
 #if MY_OS_WINDOWS
     os_name = "Windows";
 #elif MY_OS_LINUX
@@ -17,7 +17,7 @@ void mystd_print_system_info() {
     os_name = "Apple";
 #endif
 
-    // 2. ƒƒ∆ƒ¿œ∑Ø ∞·¡§
+    // 2. Ïª¥ÌååÏùºÎü¨ Í≤∞Ï†ï
 #if MY_COMPILER_MSVC
     cc_name = "MSVC";
 #elif MY_COMPILER_GCC
