@@ -266,7 +266,7 @@ typedef struct mypoolmanager {
 */
 
 
-typedef struct {
+typedef struct mypooltag {
 	struct mypooltag* next;
 } mypooltag;
 
@@ -310,6 +310,45 @@ typedef struct {
 extern mypoolmanager g_poolmng;
 extern mymutex g_lock;
 
+
+
+//fastpath
+static void* mypoolpage_freelist_get(mypoolpage* PG) {
+	MY_ASSERT((PG->elem_empty > 0) && PG->freelist != NULL);
+	MY_ASSERT((PG->elem_empty == 0) && PG->freelist == NULL);
+	
+	void* ptr = NULL;
+	if (PG->freelist) {
+		PG->elem_empty -= 1u;
+		ptr = PG->freelist;
+		PG->freelist = PG->freelist->next;
+	}
+	return ptr;
+}
+
+
+static void* mypoolpage_elem_get(mypoolpage* PG, const uint32_t idx) {
+	uint32_t checksize = ((s_cast(uint32_t, PG->elem_total) + 7u) / 8u);
+	return (PG->ptr + checksize);
+}
+static void mypoolpage_init(mypoolpage* PG, mysize_t PG_size, uint8_t core_id, uint8_t pool_idx) {
+	memset(PG, 0, sizeof(mypoolpage) + 64);
+	PG->core_id = core_id;
+	PG->memsz_id = pool_idx;
+	const mysize_t memsz = 1 << pool_idx;
+	//여기 추가
+	const mysize_t head_size = sizeof(mypoolpage) + 0;
+	PG->elem_total = (PG_size - head_size) / memsz;
+}
+
+//slowpath1 : inc elem len
+static void* mypoolpage_elem_add(mypoolpage* PG) {
+	if (PG->elem_len == PG->elem_total) return NULL;
+	PG->elem_len++;
+	return mypoolpage_elem_get(PG, PG->elem_len);
+	//fastpath
+	//if (PG->elem_empty) PG->
+}
 static void mysizepool_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
 	memset(SP, 0, sizeof(mysizepool));
 	SP->page_size_def = PAGE_SIZE;
@@ -320,7 +359,7 @@ static void mysizepool_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
 	SP->page_head = SP->page_curr;
 }
 
-static uint32_t mysizepool_newpage(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
+static uint32_t mysizepool_page_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
 	if (SP->page_cnt < 0xFFFF) {
 		MY_ASSERT(0);
 		return 0;
@@ -338,14 +377,24 @@ static uint32_t mysizepool_newpage(mysizepool* SP, uint8_t core_id, uint8_t pool
 	return 1;
 }
 
-static void mysizepoolmanager_new(mysize_t threshold, uint8_t core_idx) {
+
+//just initialize, clear NULL => g_poolmng.core[core_idx]
+static void mysizepoolmanager_init(mysize_t threshold, uint8_t core_idx) {
 	mysizepoolmanager* const SM = &g_poolmng.core[core_idx];
 	SM->core_id = core_idx + 1;
 	SM->freepage = NULL;
 	SM->threshold = threshold;
 	//SM->szpool[POOL_8B].
 }
+static void* mysizepoolmanager_freepage_get(mysizepoolmanager* SM) {
+	void* ptr = SM->freepage;
+	if (ptr == NULL)return NULL;
+	SM->freepage = SM->freepage->next;
+	return ptr;
+}
+// 연결 리스트 왔다리 갔다리 하는 쪽에서 문제가 있음.
 static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
+	//
 	const uint8_t core_idx = core_id - 1u;
 	mysizepoolmanager* const SM = &g_poolmng.core[core_idx];
 	mysizepool* SP = &SM->szpool[pool_idx];
@@ -354,7 +403,47 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 		//New SP;
 	}
 	void* ptr = NULL;
-	return ptr;
+	//fastpath
+	ptr = mypoolpage_freelist_get(SP->page_curr);
+	if (ptr) return ptr;
+	//slowpath1 = inc element
+	ptr = mypoolpage_elem_add(SP->page_curr);
+	if (ptr) return ptr;
+
+	
+	//insert full page
+	SP->page_curr->next = SP->page_full;
+	SP->page_full = SP->page_curr;
+
+	//slowpath1.5 = from page_hole
+	while (SP->page_hole) {
+		//change page_curr < = page_hole
+		//mysizepool_holelist_get(SP);
+		SP->page_curr = SP->page_hole;
+		SP->page_hole = SP->page_hole->next;
+
+		ptr = mypoolpage_elem_add(SP->page_curr);
+		if (ptr) return ptr;
+
+		//else
+		SP->page_curr->next = SP->page_full;
+		SP->page_full = SP->page_curr;
+	}
+
+	//slowpath2 = new freepage
+	mypoolpage* PG = mysizepoolmanager_freepage_get(SM);
+	//slowpath3 = no freepage -> new page
+	if (PG == NULL);
+		//mysizepool_page_new(SP,)
+	
+	//init page and get elem[0]
+	SP->page_curr = PG;
+	mypoolpage_init(PG, SP->page_size_def, core_id, pool_idx);
+	ptr = mypoolpage_elem_add(PG);
+	if (ptr) return ptr;
+
+	//done
+	return NULL;
 	
 	//SM->szpool[POOL_8B].
 }
@@ -363,11 +452,11 @@ static void mysizepoolmanager_destroy(uint8_t idx) {
 	//SM->freepage
 	//mypoolpage_free_all()
 }
-static uint8_t mypoolmng_new_core(mysize_t max_threshold) {
+static uint8_t mypoolmng_core_new(mysize_t max_threshold) {
 	for (uint8_t bit = 0u; bit < 8u; bit++) {
 		if (!(g_poolmng.cnt_bits & (1u << bit)))
 			g_poolmng.cnt_bits |= (1u << bit);
-		mysizepoolmanager_new(max_threshold, bit);
+		mysizepoolmanager_init(max_threshold, bit);
 		return bit;
 	}
 	MY_ASSERT(0);
@@ -379,7 +468,7 @@ static uint8_t mypoolmng_new_core(mysize_t max_threshold) {
 static uint8_t mypoolmng_new(mysize_t max_threshold,uint8_t cnt) {
 	MY_ASSERT_RETURN(cnt < MYCORE_MAX, 0u);
 	for (uint8_t i = 0u; i < cnt; i++)
-		mypoolmng_new_core(max_threshold);
+		mypoolmng_core_new(max_threshold);
 	return g_poolmng.cnt_bits;
 	//g_poolmng.cache[0].szpool
 }
@@ -412,16 +501,28 @@ static void* mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms) {
 	if ((1u << msb) != size) pool_idx += 1u;
 
 	const uint8_t core_idx = core_id - 1u;
-	mysizepoolmanager_alloc(core_id, pool_idx);
-	g_poolmng.core[core_idx].
+	void* ptr = mysizepoolmanager_alloc(core_id, pool_idx);
+	return ptr;
 }
-static mysizepoolmng_getcore(uint32_t id) {
-	g_poolmng.core[id];
-}
+//static mysizepoolmng_getcore(uint32_t id) {
+//	g_poolmng.core[id];
+//}
 static void mypool_free(void* ptr) {
 	//page addr
 	const uintptr_t PH_addr = (r_cast(uintptr_t, ptr) / PAGE_SIZE) * PAGE_SIZE;
-	const mypoolpage* PG = r_cast(mypoolpage*, PH_addr);
+	mypoolpage* const PG = r_cast(mypoolpage*, PH_addr);
+
+	// fastpath 1 : PG->freelist
+	PG->freelist = PG->freelist->next;
+
+	//page_full -> page_hole
+	if(PG->elem_empty==PG->elem_total)
+	PG->elem_empty++;
+
+	if (PG->elem_empty < PG->elem_total) return;
+	const uint8_t core_idx = PG->core_id;
+	mysizepoolmanager* SM = &g_poolmng.core[core_idx];
+	SM->freepage;
 	//[PG->memsz_id]
 }
 static void mypool_freeall() {
@@ -430,8 +531,8 @@ static void mypool_destroy() {
 }
 
 
-static void mystd_alloc(mysize_t len, mysize_t ms) {
-	void* ptr = mypool_alloc(len, ms);
+static void mystd_alloc(mysize_t core_id, mysize_t len, mysize_t ms) {
+	void* ptr = mypool_alloc(core_id, len, ms);
 	if (ptr == NULL) ptr = malloc(len * ms);
 	return ptr;
 }
