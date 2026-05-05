@@ -5,6 +5,11 @@ Is there any problem in this code, Please use Issues for bug reports.
 */
 
 #include "mystd.h"
+mypoolmanager g_poolmng;
+mymutex g_lock;
+void mystd_init() {
+    mymutex_init(&g_lock);
+}
 void mystd_print_system_info() {
     const char* os_name = "Unknown OS";
     const char* cc_name = "Unknown Compiler";

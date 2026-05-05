@@ -20,6 +20,8 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define ARENA_ALLOC(ALC, T, SZ) (T*)arena_alloc(ALC,sizeof(T)*(SZ))
 #define GET_PADDING(LEN) (((max(1,(LEN)) - 1) / sizeof(uint64_t) + 1) * sizeof(uint64_t))
 
+//#ifdef POOL_UNSAFE
+
 typedef enum {
 	_8B = 8,
 	_16B = 16,
@@ -46,8 +48,10 @@ typedef enum {
 	_8MB = _1MB * 8,
 
 	PAGE_SIZE=_4KB,
+	MYCORE_MAX=8
 };
 
+static const mysize_t _1GB = _1MB * 1024;
 /*
 
 #include <windows.h>
@@ -101,6 +105,8 @@ int main() {
 	return 0;
 }
 */
+
+MY_EXTERN_START
 #if MY_OS_WINDOWS
 static void* mymem_reserve(mysize_t capa) {
 	//capa = ((capa - 1) / (_1KB * 64) + 1) * (_1KB * 64);
@@ -178,7 +184,7 @@ typedef struct myarena {
 }myarena;
 
 typedef enum {
-	POOL_SIZE_MAX = 32,
+	POOL_SIZE_MAX = 16,
 	POOL_8B = 0,//128 (1024)
 	POOL_16B, //64 (1024)
 	POOL_24B, //42 (1008)
@@ -260,56 +266,175 @@ typedef struct mypoolmanager {
 */
 
 
-typedef struct myfreepool {
-	struct myfreepool* next;
-} myfreepool;
+typedef struct {
+	struct mypooltag* next;
+} mypooltag;
 
 typedef struct mypoolpage {
 	struct mypoolpage* next;
-	uint32_t len;
-	uint16_t capa;
-	uint16_t empty;
+	struct mypoolpage* prev;
+	struct mypooltag* freelist;
+	uint16_t elem_total;
+	uint16_t elem_len;
+	uint16_t elem_empty;
+	uint8_t memsz_id;//8<<memsz
+	uint8_t core_id;
 	uint8_t ptr[];
 } mypoolpage;
-//8   16  24, 32, 40, 48, 52, 64=64KB
-//512 256 
+typedef struct {
+	uint16_t page_cnt;
+	uint16_t page_size_def;//MAX 64KB
+	mypoolpage* page_head;
+	mypoolpage* page_curr;
+	mypoolpage* page_full;
+	mypoolpage* page_hole;
+} mysizepool;
+typedef struct {
+	union {
+		struct {
+			mysizepool szpool[POOL_SIZE_MAX];
+			int core_id;
+			mysize_t threshold;
+			mypooltag* freepage;
+		};
+		uint8_t _[1024-64];
+	};
+} mysizepoolmanager;//SPM
 
 typedef struct {
-	//64
-	struct myfreepool* freepool;
-	//64
-	mypage* blocklist;
-	//64
-	uint32_t elem_memsize; //4GB = 32
-	uint32_t blocklist_cnt;
-	//64
-	uint16_t elem_maxcnt; //4GB = 32
-	uint16_t elem_idx; //655.. 
-	uint16_t block_idx; //4KB 4*1KB= * 655..
-	uint8_t ptr[];
-} mypool;
-typedef struct {
-	mypool* poollist;
-} mypoolmanager;
+	mysizepoolmanager core[MYCORE_MAX];
+	uint8_t cnt_bits;
+} mypoolmanager; //PM
 
-static void mypool_new(uint32_t elem_memsize) {
 
+extern mypoolmanager g_poolmng;
+extern mymutex g_lock;
+
+static void mysizepool_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
+	memset(SP, 0, sizeof(mysizepool));
+	SP->page_size_def = PAGE_SIZE;
+	SP->page_cnt = 1u;
+	SP->page_curr = mymem_reserve(SP->page_size_def);
+	SP->page_curr = mymem_commit(SP->page_curr, SP->page_size_def);
+	MY_ASSERT(SP->page_curr);
+	SP->page_head = SP->page_curr;
 }
-static void mypool_alloc() {
 
+static uint32_t mysizepool_newpage(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
+	if (SP->page_cnt < 0xFFFF) {
+		MY_ASSERT(0);
+		return 0;
+	}
+	SP->page_cnt += 1u;
+	const void* ppage = mymem_reserve(SP->page_size_def);
+	ppage = mymem_commit(ppage, SP->page_size_def);
+	MY_ASSERT(ppage);
+
+	mypoolpage* page = r_cast(mypoolpage*, ppage);
+
+	page->core_id = core_id;
+	//page->prev = SP->page_curr;
+	SP->page_curr->next = page;
+	return 1;
 }
-static void mypool_free() {
+
+static void mysizepoolmanager_new(mysize_t threshold, uint8_t core_idx) {
+	mysizepoolmanager* const SM = &g_poolmng.core[core_idx];
+	SM->core_id = core_idx + 1;
+	SM->freepage = NULL;
+	SM->threshold = threshold;
+	//SM->szpool[POOL_8B].
+}
+static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
+	const uint8_t core_idx = core_id - 1u;
+	mysizepoolmanager* const SM = &g_poolmng.core[core_idx];
+	mysizepool* SP = &SM->szpool[pool_idx];
+	if (SP->page_curr == NULL) {
+		mysizepool_new(SP, core_id, pool_idx);
+		//New SP;
+	}
+	void* ptr = NULL;
+	return ptr;
+	
+	//SM->szpool[POOL_8B].
+}
+static void mysizepoolmanager_destroy(uint8_t idx) {
+	mysizepoolmanager* SM = &g_poolmng.core[idx];
+	//SM->freepage
+	//mypoolpage_free_all()
+}
+static uint8_t mypoolmng_new_core(mysize_t max_threshold) {
+	for (uint8_t bit = 0u; bit < 8u; bit++) {
+		if (!(g_poolmng.cnt_bits & (1u << bit)))
+			g_poolmng.cnt_bits |= (1u << bit);
+		mysizepoolmanager_new(max_threshold, bit);
+		return bit;
+	}
+	MY_ASSERT(0);
+	return 0u;
+	//g_poolmng.cache[0].szpool
+}
+
+//cnt < MYCORE_MAX
+static uint8_t mypoolmng_new(mysize_t max_threshold,uint8_t cnt) {
+	MY_ASSERT_RETURN(cnt < MYCORE_MAX, 0u);
+	for (uint8_t i = 0u; i < cnt; i++)
+		mypoolmng_new_core(max_threshold);
+	return g_poolmng.cnt_bits;
+	//g_poolmng.cache[0].szpool
+}
+//CRITICAL ZONE -> do mutex or lock
+static void mypoolmng_destroy_id(const uint8_t id) {
+	MY_ASSERT_RETURN(id <= 8u && id != 0u); 
+	MY_ASSERT(g_poolmng.cnt_bits & (1u << (id-1u)));
+	mymutex_lock(&g_lock);
+	{
+		const uint8_t idx = id - 1u;
+		g_poolmng.cnt_bits ^= (1u << (idx));
+		mysizepoolmanager_destroy(id - idx);
+	}
+	mymutex_unlock(&g_lock);
+	return 0u;
+	//g_poolmng.cache[0].szpool
+}
+static void mypoolmng_destroy_all() {
+	for (uint8_t bit = 0u; bit < 8u; bit++) {
+		if ((g_poolmng.cnt_bits & (1u << bit)))
+			mypoolmng_destroy_id(bit + 1u);
+	}
+}
+static void* mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms) {
+	const mysize_t size = (len * ms);
+	MY_ASSERT_RETURN((size > 0) && (size < _1GB), NULL);
+
+	const uint32_t msb = find_msb32_idx(size);
+	uint8_t pool_idx = msb;
+	if ((1u << msb) != size) pool_idx += 1u;
+
+	const uint8_t core_idx = core_id - 1u;
+	mysizepoolmanager_alloc(core_id, pool_idx);
+	g_poolmng.core[core_idx].
+}
+static mysizepoolmng_getcore(uint32_t id) {
+	g_poolmng.core[id];
+}
+static void mypool_free(void* ptr) {
+	//page addr
+	const uintptr_t PH_addr = (r_cast(uintptr_t, ptr) / PAGE_SIZE) * PAGE_SIZE;
+	const mypoolpage* PG = r_cast(mypoolpage*, PH_addr);
+	//[PG->memsz_id]
 }
 static void mypool_freeall() {
-
 }
 static void mypool_destroy() {
-
 }
 
-MY_EXTERN_START
-myglobalmemory g_mymemory;
 
+static void mystd_alloc(mysize_t len, mysize_t ms) {
+	void* ptr = mypool_alloc(len, ms);
+	if (ptr == NULL) ptr = malloc(len * ms);
+	return ptr;
+}
 /*
 mypoolmanager{
 	RESERVED // basic : 4MB -> release/decommit 안 함. thread 마다 하나씩 있음.

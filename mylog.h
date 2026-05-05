@@ -49,4 +49,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 		}while(0)
 #endif
 
+#define MY_ASSERT_RETURN(cond, v) MY_ASSERT(cond); if(!(cond)){return v;}
+
 #endif
