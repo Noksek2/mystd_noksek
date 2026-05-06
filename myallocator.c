@@ -137,7 +137,3 @@ void* myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_cap
 	}
 	return myarena_alloc(alc, new_capa);
 }
-/*pool allocator*/
-
-void mypoolmanager_new(mypoolmanager* pool_mng) {
-}

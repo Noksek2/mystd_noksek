@@ -129,6 +129,11 @@ static void* mymem_commit(void* mem, mysize_t capa) {
 	//MY_ASSERT(mem != NULL);
 	return mem;
 }
+static void* mymem_rescommit(mysize_t capa){
+	void* mem = mymem_reserve(capa);
+	MY_ASSERT(mymem_commit(mem, capa) != NULL);
+	return mem;
+}
 static void mymem_release(void* mem, mysize_t capa) {
 	VirtualFree(mem, 0, MEM_RELEASE);
 }
@@ -293,13 +298,14 @@ typedef struct {
 } mysizepool;//SP
 typedef struct {
 	union {
+		//400B
 		struct {
 			mysizepool szpool[POOL_SIZE_MAX];
 			uint8_t core_id;
 			mysize_t threshold;
 			mypooltag* freepage;
 		};
-		uint8_t _[1024-64];
+		uint8_t _[64*7];
 	};
 } mysizepoolmanager;//SM
 
@@ -311,13 +317,14 @@ typedef struct {
 
 extern mypoolmanager g_poolmng;
 extern mymutex g_lock;
-
+extern uint32_t g_slowloop;
 
 
 //fastpath
 static void* mypoolpage_freelist_get(mypoolpage* PG) {
-	MY_ASSERT((PG->elem_empty > 0) && PG->freelist != NULL);
-	MY_ASSERT((PG->elem_empty == 0) && PG->freelist == NULL);
+	MY_ASSERT(
+		((PG->elem_empty > 0) && PG->freelist != NULL)
+		||(PG->elem_empty == 0) && PG->freelist == NULL);
 	
 	void* ptr = NULL;
 	if (PG->freelist) {
@@ -331,23 +338,26 @@ static void* mypoolpage_freelist_get(mypoolpage* PG) {
 
 static void* mypoolpage_elem_get(mypoolpage* PG, const uint32_t idx) {
 	uint32_t checksize = ((s_cast(uint32_t, PG->elem_total) + 7u) / 8u);
-	return (PG->ptr + checksize);
+	return (PG->ptr + checksize + idx * (8u << PG->memsz_idx));
 }
 static void mypoolpage_init(mypoolpage* PG, mysize_t PG_size, uint8_t core_id, uint8_t pool_idx) {
-	memset(PG, 0, sizeof(mypoolpage) + 64);
+	memset(PG, 0, sizeof(mypoolpage) + 64u);
 	PG->core_id = core_id;
 	PG->memsz_idx = pool_idx;
-	const mysize_t memsz = 1 << pool_idx;
+	const mysize_t memsz = 8u << pool_idx;
 	//여기 추가
-	const mysize_t head_size = sizeof(mypoolpage) + 0;
+	const mysize_t check_size = max((64u >> pool_idx), 8u);
+	const mysize_t head_size = sizeof(mypoolpage) + check_size;
 	PG->elem_total = (PG_size - head_size) / memsz;
+
+	MY_LOG_INFO("Init mypoolpage %X (CID:%u MSZ:%u CNT:%u)", 
+				PG, core_id, memsz, PG->elem_total);
 }
 
 //slowpath1 : inc elem len
 static void* mypoolpage_elem_add(mypoolpage* PG) {
 	if (PG->elem_len == PG->elem_total) return NULL;
-	PG->elem_len++;
-	return mypoolpage_elem_get(PG, PG->elem_len);
+	return mypoolpage_elem_get(PG, PG->elem_len++);
 	//fastpath
 	//if (PG->elem_empty) PG->
 }
@@ -355,25 +365,22 @@ static void mysizepool_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
 	memset(SP, 0, sizeof(mysizepool));
 	SP->page_size_def = PAGE_SIZE;
 	SP->page_cnt = 1u;
-	SP->page_curr = mymem_reserve(SP->page_size_def);
-	SP->page_curr = mymem_commit(SP->page_curr, SP->page_size_def);
+	SP->page_curr = mymem_rescommit(SP->page_size_def);
 	MY_ASSERT(SP->page_curr);
+	mypoolpage_init(SP->page_curr, SP->page_size_def, core_id, pool_idx);
 }
 
-static uint32_t mysizepool_page_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
+static mypoolpage* mysizepool_page_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
 	MY_ASSERT_RETURN(SP->page_cnt < 0xFFFF, 0);
 	
 	SP->page_cnt += 1u;
-	const void* ppage = mymem_reserve(SP->page_size_def);
-	ppage = mymem_commit(ppage, SP->page_size_def);
-	MY_ASSERT(ppage);
+	const void* ppage = mymem_rescommit(SP->page_size_def);
 
 	mypoolpage* page = r_cast(mypoolpage*, ppage);
 
-	page->core_id = core_id;
+	mypoolpage_init(page, SP->page_size_def, core_id, pool_idx);
 	//page->prev = SP->page_curr;
-	SP->page_curr->next = page;
-	return 1;
+	return page;
 }
 
 
@@ -391,30 +398,32 @@ static void* mysizepoolmanager_freepage_get(mysizepoolmanager* SM) {
 	SM->freepage = SM->freepage->next;
 	return ptr;
 }
+
 //O(N)을 막을 방법 ? SP에서 빈 녀석들 개수(o. 가능) 혹은 Page 주소? (x. 불가능)
 static void* slowpath1_5(mysizepool* SP){
 	mypoolpage* PG=SP->page_rest;
 	mypoolpage* PG_prev = NULL;
 	void* ptr;
-	
+	if (PG == NULL) return NULL;
 	//rest => elem_empty =0 -> N -> N-1
-	if(PG->total > (PG->elem_len - PG->elem_empty)){
-		elem_empty -= 1u;
+	if(PG->elem_total > (PG->elem_len - PG->elem_empty)){
+		PG->elem_empty -= 1u;
 		SP->page_rest = PG->next;
 		SP->page_curr = PG;
 		goto l_succ;
 	}
 	
 	while(true){
+		g_slowloop++;
 		PG_prev = PG;
 		PG = PG->next;
 		if(PG==NULL) return NULL;
-		if(PG->total == (PG->elem_len - PG->elem_empty)) continue;
+		if(PG->elem_total == (PG->elem_len - PG->elem_empty)) continue;
 		PG_prev->next = PG->next;
 		SP->page_curr = PG;
 		break;
 	}
-	l_succ;
+	l_succ:
 		MY_ASSERT(PG->freelist != NULL);
 		ptr = PG->freelist;
 		PG->freelist = PG->freelist->next;
@@ -427,39 +436,63 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	mysizepoolmanager* const SM = &g_poolmng.core[core_idx];
 	mysizepool* SP = &SM->szpool[pool_idx];
 	if (SP->page_curr == NULL) {
+		MY_LOG_INFO("Init mysizepool (CID:%u POOL%uB)", core_id, 8u << pool_idx);
 		mysizepool_new(SP, core_id, pool_idx);
 		//New SP;
 	}
 	void* ptr = NULL;
 	//fastpath
-	ptr = mypoolpage_freelist_get(SP->page_curr);
-	if (ptr) return ptr;
+	
 	//slowpath1 = inc element
 	ptr = mypoolpage_elem_add(SP->page_curr);
-	if (ptr) return ptr;
+	if (ptr) {
+		MY_LOG_INFO("FastPath1 : ");
+		return ptr;
+	}
 
+	ptr = mypoolpage_freelist_get(SP->page_curr);
+	if (ptr) {
+		MY_LOG_INFO("FastPath2 : ");
+		return ptr;
+	}
+	
+	
+	//Page
 
 	//slowpath1.5 = from page_rest
 	//O(N)
-	ptr = slowpath1_5(SP);
-	if (ptr) return ptr;
+	//ptr = slowpath1_5(SP);
+	if (ptr) {
+		MY_LOG_INFO("SlowPath1.5 : ");
+
+		return ptr;
+	}
+	else {
+		SP->page_curr->next = SP->page_rest;
+		SP->page_rest = SP->page_curr;
+		SP->page_curr = NULL;
+	}
 	
 	//slowpath2 = new freepage
 	mypoolpage* PG = mysizepoolmanager_freepage_get(SM);
 	//slowpath3 = no freepage -> new page
-	if (PG == NULL);
-		//mysizepool_page_new(SP,)
-	
+	if (PG == NULL) {
+		PG = mysizepool_page_new(SP, core_id, pool_idx);
+		MY_LOG_INFO("SlowPath3 : ");
+		if (PG == NULL) {
+			MY_LOG_INFO("All SlowPath Failed: ");
+			return NULL;
+		}
+	}
+	else {
+		MY_LOG_INFO("SlowPath2 : ");
+	}
 	//init page and get elem[0]
 	SP->page_curr = PG;
-	mypoolpage_init(PG, SP->page_size_def, core_id, pool_idx);
+	//mypoolpage_init(PG, SP->page_size_def, core_id, pool_idx);
 	ptr = mypoolpage_elem_add(PG);
-	if (ptr) return ptr;
+	return ptr;
 
-	//done
-	return NULL;
-	
-	//SM->szpool[POOL_8B].
 }
 static void mysizepoolmanager_destroy(uint8_t idx) {
 	mysizepoolmanager* SM = &g_poolmng.core[idx];
@@ -471,9 +504,9 @@ static uint8_t mypoolmng_core_new(mysize_t max_threshold) {
 		if (!(g_poolmng.cnt_bits & (1u << bit)))
 			g_poolmng.cnt_bits |= (1u << bit);
 		mysizepoolmanager_init(max_threshold, bit);
-		return bit;
+		return bit + 1u;
 	}
-	MY_ASSERT(0);
+	//MY_ASSERT(0);
 	return 0u;
 	//g_poolmng.cache[0].szpool
 }
@@ -494,10 +527,9 @@ static void mypoolmng_destroy_id(const uint8_t id) {
 	{
 		const uint8_t idx = id - 1u;
 		g_poolmng.cnt_bits ^= (1u << (idx));
-		mysizepoolmanager_destroy(id - idx);
+		mysizepoolmanager_destroy(idx);
 	}
 	mymutex_unlock(&g_lock);
-	return 0u;
 	//g_poolmng.cache[0].szpool
 }
 static void mypoolmng_destroy_all() {
@@ -508,27 +540,31 @@ static void mypoolmng_destroy_all() {
 }
 static void* mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms) {
 	const mysize_t size = (len * ms);
-	MY_ASSERT_RETURN((size > 0) && (size < _1GB), NULL);
+	MY_ASSERT_RETURN(core_id <= MYCORE_MAX, 0);
+	MY_ASSERT_RETURN((size > 0) && (size < _4KB), NULL);
 
 	const uint32_t msb = find_msb32_idx(size);
-	uint8_t pool_idx = msb;
+	uint8_t pool_idx = (msb >= 3 ? msb - 3 : 0); 
 	if ((1u << msb) != size) pool_idx += 1u;
 
 	const uint8_t core_idx = core_id - 1u;
 	void* ptr = mysizepoolmanager_alloc(core_id, pool_idx);
+	MY_LOG_INFO("ALLOC %X SZ:(%u x %u)", ptr, len, ms);
 	return ptr;
 }
 //static mysizepoolmng_getcore(uint32_t id) {
 //	g_poolmng.core[id];
 //}
 // this_page == page_rest | page_curr -> SP -> freepage 가능?
-static void mypool_free(void* ptr) {
+static uint32_t mypool_free(void* ptr) {
 	//page addr
 	const uintptr_t PH_addr = (r_cast(uintptr_t, ptr) / PAGE_SIZE) * PAGE_SIZE;
 	mypoolpage* const PG = r_cast(mypoolpage*, PH_addr);
 
 	// path1 : PG->freelist
-	PG->freelist = PG->freelist->next;
+	mypooltag* FL = PG->freelist;
+	PG->freelist = r_cast(mypooltag*, ptr);
+	PG->freelist->next = FL;
 	PG->elem_empty++;
 	
 	// SP->rest
@@ -550,11 +586,6 @@ static void mypool_destroy() {
 }
 
 
-static void mystd_alloc(mysize_t core_id, mysize_t len, mysize_t ms) {
-	void* ptr = mypool_alloc(core_id, len, ms);
-	if (ptr == NULL) ptr = malloc(len * ms);
-	return ptr;
-}
 /*
 mypoolmanager{
 	RESERVED // basic : 4MB -> release/decommit 안 함. thread 마다 하나씩 있음.
@@ -598,8 +629,6 @@ extern void  myarena_check_new(myarena* alc, myarena_check* checkpoint);
 extern void  myarena_rewind(myarena* alc, myarena_check* checkpoint);
 extern void* myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa);
 
-
-extern void mypoolmanager_new(mypoolmanager* pool_mng);
 #ifdef __USE_CLEAN__
 //not yet
 //extern void arena_clean(myarena* alc,myarena_check* checkpoint);

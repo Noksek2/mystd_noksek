@@ -126,6 +126,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include <sys/time.h>
 #endif
 
+typedef uint32_t res_t;
 typedef uint32_t mysize_t;
 typedef int64_t myclock_t;
 

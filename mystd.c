@@ -7,8 +7,30 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include "mystd.h"
 mypoolmanager g_poolmng;
 mymutex g_lock;
+uint8_t g_PM_id;
 void mystd_init() {
     mymutex_init(&g_lock);
+    uint8_t id = mypoolmng_core_new(_1GB / 8);//128MB
+    MY_ASSERT(id > 0 && id <= MYCORE_MAX);
+    g_PM_id = id;
+}
+void* mystd_alloc(mysize_t len, mysize_t ms) {
+    void* ptr = mypool_alloc(g_PM_id, len, ms);
+    if (ptr == NULL) ptr = malloc(len * ms);
+    return ptr;
+}
+void* mystd_alloc_id(uint8_t core_id, mysize_t len, mysize_t ms) {
+    void* ptr = mypool_alloc(core_id, len, ms);
+    if (ptr == NULL) ptr = malloc(len * ms);
+    return ptr;
+}
+void mystd_free(void* ptr) {
+    if(mypool_free(ptr));
+    free(ptr);
+}
+void mystd_destroy() {
+    mypoolmng_destroy_all();
+    mymutex_destroy(&g_lock);
 }
 void mystd_print_system_info() {
     const char* os_name = "Unknown OS";

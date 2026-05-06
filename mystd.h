@@ -20,8 +20,14 @@ Is there any problem in this code, Please use Issues for bug reports.
     +MYSTD_VERSION_PATCH)
 
 MY_EXTERN_START
-extern void mystd_init();
-extern void mystd_print_system_info();
+uint8_t g_PM_id;
+
+extern void  mystd_init();
+extern void  mystd_destroy();
+//extern void* mystd_alloc(mysize_t len, mysize_t ms);
+//extern void* mystd_alloc_id(uint8_t core_id, mysize_t len, mysize_t ms);
+//extern void  mystd_free(void* ptr);
+extern void  mystd_print_system_info();
 
 MY_EXTERN_END
 
