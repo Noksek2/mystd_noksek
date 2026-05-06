@@ -74,11 +74,11 @@ Is there any problem in this code, Please use Issues for bug reports.
 #endif
 
 #ifdef __cplusplus 
-	#define MY_EXTERN_START extern "C" {
-	#define MY_EXTERN_END }
+#define MY_EXTERN_START extern "C" {
+#define MY_EXTERN_END }
 #else 
-	#define MY_EXTERN_START 
-	#define MY_EXTERN_END
+#define MY_EXTERN_START 
+#define MY_EXTERN_END
 #endif
 
 
@@ -130,6 +130,37 @@ typedef uint32_t res_t;
 typedef uint32_t mysize_t;
 typedef int64_t myclock_t;
 
+
+typedef enum {
+    _8B = 8,
+    _16B = 16,
+    _32B = 32,
+    _64B = 64,
+    _128B = 128,
+    _256B = 256,
+    _512B = 512,
+
+    _1KB = (1024),
+    _2KB = _1KB * 2,
+    _4KB = _1KB * 4,
+    _8KB = _1KB * 8,
+    _16KB = _1KB * 16,
+    _32KB = _1KB * 32,
+    _64KB = _1KB * 64,
+    _128KB = _1KB * 128,
+    _256KB = _1KB * 256,
+    _512KB = _1KB * 512,
+
+    _1MB = (1024 * 1024),
+    _2MB = _1MB * 2,
+    _4MB = _1MB * 4,
+    _8MB = _1MB * 8,
+    _16MB = _1MB * 16,
+    _32MB = _1MB * 32,
+    _64MB = _1MB * 64,
+    _128MB = _1MB * 128,
+};
+
 // 선언pthread_mutex_t lock;뮤텍스 객체 변수 선언초기화
 // PTHREAD_MUTEX_INITIALIZER정적 초기화 (전역/정적 변수용)
 // pthread_mutex_init()동적 초기화 (속성 지정 가능)잠금 (Lock)
@@ -165,32 +196,42 @@ MY_EXTERN_START
 #if MY_OS_WINDOWS
 typedef CRITICAL_SECTION mymutex;
 
-static mymutex_init(mymutex* mut) {
+static void mymutex_init(mymutex* mut) {
     InitializeCriticalSection(mut);
 }
-static mymutex_destroy(mymutex* mut) {
+static void mymutex_destroy(mymutex* mut) {
     DeleteCriticalSection(mut);
 }
-static mymutex_lock(mymutex* mut) {
+static void mymutex_lock(mymutex* mut) {
     EnterCriticalSection(mut);
 }
-static mymutex_unlock(mymutex* mut) {
+static void mymutex_unlock(mymutex* mut) {
     LeaveCriticalSection(mut);
 }
 #elif MY_OS_LINUX
+typedef struct mymutex {
+    pthread_mutex_t mut;
+    pthread_mutexattr_t attr;
+};
 typedef pthread_mutex_t mymutex;
 static mymutex_init(mymutex* mut) {
-    mut = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutexattr_init(&mut->attr);
+    pthread_mutexattr_settype(&mut->attr, PTHREAD_MUTEX_RECURSIVE);
+    // 3. 설정된 속성으로 뮤텍스 초기화
+    pthread_mutex_init(&mut->mut, &mut->attr);
+
+   // mut->mut = PTHREAD_MUTEX_INITIALIZER;
     //pthread_mutex_lock(mut);
 }
 static mymutex_destroy(mymutex* mut) {
-    pthread_mutex_destroy(mut);
+    pthread_mutex_destroy(&mut->mut);
+    pthread_mutexattr_destroy(&mut->attr);
 }
 static mymutex_lock(mymutex* mut) {
-    pthread_mutex_lock(mut);
+    pthread_mutex_lock(&mut->mut);
 }
 static mymutex_unlock(mymutex* mut) {
-    pthread_mutex_unlock(mut);
+    pthread_mutex_unlock(&mut->mut);
 }
 #endif
 

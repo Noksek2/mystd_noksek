@@ -10,7 +10,7 @@ mymutex g_lock;
 uint8_t g_PM_id;
 void mystd_init() {
     mymutex_init(&g_lock);
-    uint8_t id = mypoolmng_core_new(_1GB / 8);//128MB
+    uint8_t id = mypoolmng_core_new(_64MB);//128MB
     MY_ASSERT(id > 0 && id <= MYCORE_MAX);
     g_PM_id = id;
 }
@@ -29,7 +29,7 @@ void mystd_free(void* ptr) {
     free(ptr);
 }
 void mystd_destroy() {
-    mypoolmng_destroy_all();
+    mypoolmng_destroy();
     mymutex_destroy(&g_lock);
 }
 void mystd_print_system_info() {

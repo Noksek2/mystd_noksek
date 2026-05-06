@@ -1,0 +1,66 @@
+;Release
+
+N=9000 M=256
+Pool   Time : 0.002649
+Malloc Time : 0.003847
+
+N=9000 M=504
+Pool   Time : 0.005348
+Malloc Time : 0.005704
+
+N=9000 M=512
+Pool   Time : 0.014309
+Malloc Time : 0.006709
+
+N=9000 M=1016
+Pool   Time : 0.014452
+Malloc Time : 0.010980
+
+N=9000 M=1024
+Pool   Time : 0.044515
+Malloc Time : 0.010967
+
+
+N=10000 M=16
+Pool   Time : 0.000562
+Malloc Time : 0.001849
+
+N=10000 M=16
+Pool   Time : 0.000547
+Malloc Time : 0.001824
+
+N=10000 M=32
+Pool   Time : 0.000680
+Malloc Time : 0.002158
+
+N=10000 M=64
+Pool   Time : 0.001065
+Malloc Time : 0.002364
+
+N=10000 M=128
+Pool   Time : 0.001643
+Malloc Time : 0.003157
+
+N=10000 M=256
+Pool   Time : 0.002932
+Malloc Time : 0.004572
+
+N=10000 M=375
+Pool   Time : 0.006178
+Malloc Time : 0.005237
+
+N=10000 M=504
+Pool   Time : 0.006004
+Malloc Time : 0.006747
+
+N=90000 M=8
+Pool   Time : 0.004030
+Malloc Time : 0.013717
+
+N=90000 M=64
+Pool   Time : 0.010498
+Malloc Time : 0.022651
+
+N=90000 M=500
+Pool   Time : 0.249433
+Malloc Time : 0.114241
