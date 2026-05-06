@@ -402,25 +402,23 @@ static void* slowpath1_5(mysizepool* SP){
 		elem_empty -= 1u;
 		SP->page_rest = PG->next;
 		SP->page_curr = PG;
-		MY_ASSERT(PG->freelist != NULL);
-		ptr = PG->freelist;
-		PG->freelist = PG->freelist->next;
-		return PG->freelist;
+		goto l_succ;
 	}
 	
 	while(true){
 		PG_prev = PG;
 		PG = PG->next;
-		if(PG==NULL) break;
+		if(PG==NULL) return NULL;
 		if(PG->total == (PG->elem_len - PG->elem_empty)) continue;
 		PG_prev->next = PG->next;
 		SP->page_curr = PG;
-		
+		break;
+	}
+	l_succ;
+		MY_ASSERT(PG->freelist != NULL);
 		ptr = PG->freelist;
 		PG->freelist = PG->freelist->next;
 		return PG->freelist;
-	}
-	return NULL;
 }
 // 연결 리스트 왔다리 갔다리 하는 쪽에서 문제가 있음.
 static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
@@ -523,6 +521,7 @@ static void* mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms) {
 //static mysizepoolmng_getcore(uint32_t id) {
 //	g_poolmng.core[id];
 //}
+// this_page == page_rest | page_curr -> SP -> freepage 가능?
 static void mypool_free(void* ptr) {
 	//page addr
 	const uintptr_t PH_addr = (r_cast(uintptr_t, ptr) / PAGE_SIZE) * PAGE_SIZE;
