@@ -199,107 +199,109 @@ typedef enum {
 	POOL_128B, POOL_192B, //POOL_160B, POOL_192B, POOL_224B,
 	POOL_256B, POOL_384B, //POOL_320B, POOL_384B, POOL_448B,
 	POOL_512B, POOL_768B, //POOL_640B, POOL_768B, POOL_896B,
-	/*
-	POOL_1KB,POOL_1_5KB,
-	POOL_2KB,POOL_3KB,
-	POOL_4KB,POOL_6KB,
-	POOL_8KB,POOL_12KB,
-	POOL_16KB,POOL_24KB,
-	POOL_32KB,POOL_48KB,
-	POOL_64KB,
-	POOL_128KB,
-	POOL_256KB,
-	POOL_512KB,
-	*/
-	/*
-	POOL_1MB,
-	POOL_2MB,
-	POOL_4MB,
-	POOL_8MB,
-	POOL_16MB,
-	POOL_32MB,
-	POOL_64MB,
-	POOL_128MB,
-	POOL_256MB,
-	POOL_512MB,
-	POOL_1GB,
-	POOL_2GB,
-	POOL_4GB,
-	*/
+	
+	// POOL_1KB,POOL_1_5KB,
+	// POOL_2KB,POOL_3KB,
+	// POOL_4KB,POOL_6KB,
+	// POOL_8KB,POOL_12KB,
+	// POOL_16KB,POOL_24KB,
+	// POOL_32KB,POOL_48KB,
+	// POOL_64KB,
+	// POOL_128KB,
+	// POOL_256KB,
+	// POOL_512KB,
+	
+	
+	// POOL_1MB,
+	// POOL_2MB,
+	// POOL_4MB,
+	// POOL_8MB,
+	// POOL_16MB,
+	// POOL_32MB,
+	// POOL_64MB,
+	// POOL_128MB,
+	// POOL_256MB,
+	// POOL_512MB,
+	// POOL_1GB,
+	// POOL_2GB,
+	// POOL_4GB,
+	
 } mypoolsize_t;
 
 /*
-typedef struct mypool_head {
-
-}mypool_head;
-typedef struct mypool {
-	freelist;
-	len;
-}mypool;
-
-typedef struct mypool_head {
-	struct {
-		uintptr_t next : 56;
-		uint32_t size : 8;
-	};
-	uint8_t ptr[];
-}mypool_head;
-struct mypool_block {
-	mypool_head* blocklist;
-	mysize_t size : 32;
-	uint8_t ptr[];
-};
-typedef struct mypool {
-	mypool_head* freelist;
-	uint32_t block_len;
-	uint32_t block_size : 5;//(8<<block_size) byte
-	uint32_t blocklist_len : 27;
-}mypool;
-typedef struct mypoolmanager {
-	mypool pool_map[POOLMAP_SIZE];
-	uint32_t block_size_default[POOLMAP_SIZE];
-	mysize_t total_size, threshold_size;
-	//uint32_t threshold;
-	//8byte : 8byte<<0, 16byte:8byte<<1 ...512byte:8byte<<6
-	// 512KB : 8<<16
-}mypoolmanager;//8
+// typedef struct mypool_head {
+// 
+// }mypool_head;
+// typedef struct mypool {
+// 	freelist;
+// 	len;
+// }mypool;
+// 
+// typedef struct mypool_head {
+// 	struct {
+// 		uintptr_t next : 56;
+// 		uint32_t size : 8;
+// 	};
+// 	uint8_t ptr[];
+// }mypool_head;
+// struct mypool_block {
+// 	mypool_head* blocklist;
+// 	mysize_t size : 32;
+// 	uint8_t ptr[];
+// };
+// typedef struct mypool {
+// 	mypool_head* freelist;
+// 	uint32_t block_len;
+// 	uint32_t block_size : 5;//(8<<block_size) byte
+// 	uint32_t blocklist_len : 27;
+// }mypool;
+// typedef struct mypoolmanager {
+// 	mypool pool_map[POOLMAP_SIZE];
+// 	uint32_t block_size_default[POOLMAP_SIZE];
+// 	mysize_t total_size, threshold_size;
+// 	//uint32_t threshold;
+// 	//8byte : 8byte<<0, 16byte:8byte<<1 ...512byte:8byte<<6
+// 	// 512KB : 8<<16
+// }mypoolmanager;//8
 */
 
 
 typedef struct mypooltag {
 	struct mypooltag* next;
 } mypooltag;
-
-typedef struct mypoolpage {
-	struct mypoolpage* next;
-	struct mypoolpage* prev;
-	struct mypooltag* freelist;
-	uint16_t elem_total;
+//freelist를 next에 pack하면 16바이트 압축 가능
+typedef struct mypoolpage { 
+	struct mypoolpage* next; //8
+	//struct mypoolpage* prev;
+	struct mypooltag* freelist; //8
+	uint16_t elem_total; //
 	uint16_t elem_len;
 	uint16_t elem_empty;
-	uint8_t memsz_id;//8<<memsz
+	uint8_t memsz_idx;//8<<memsz
 	uint8_t core_id;
 	uint8_t ptr[];
-} mypoolpage;
+} mypoolpage;//PG
 typedef struct {
 	uint16_t page_cnt;
 	uint16_t page_size_def;//MAX 64KB
-	mypoolpage* page_head;
+	uint32_t _;
 	mypoolpage* page_curr;
-	mypoolpage* page_full;
-	mypoolpage* page_hole;
-} mysizepool;
+	mypoolpage* page_rest;
+	//mypoolpage* page_tail;
+	//mypoolpage* page_full;
+	//mypoolpage* page_hole;
+} mysizepool;//SP
 typedef struct {
 	union {
 		struct {
 			mysizepool szpool[POOL_SIZE_MAX];
-			int core_id;
+			uint8_t core_id;
 			mysize_t threshold;
 			mypooltag* freepage;
 		};
 		uint8_t _[1024-64];
 	};
-} mysizepoolmanager;//SPM
+} mysizepoolmanager;//SM
 
 typedef struct {
 	mysizepoolmanager core[MYCORE_MAX];
@@ -334,7 +336,7 @@ static void* mypoolpage_elem_get(mypoolpage* PG, const uint32_t idx) {
 static void mypoolpage_init(mypoolpage* PG, mysize_t PG_size, uint8_t core_id, uint8_t pool_idx) {
 	memset(PG, 0, sizeof(mypoolpage) + 64);
 	PG->core_id = core_id;
-	PG->memsz_id = pool_idx;
+	PG->memsz_idx = pool_idx;
 	const mysize_t memsz = 1 << pool_idx;
 	//여기 추가
 	const mysize_t head_size = sizeof(mypoolpage) + 0;
@@ -356,14 +358,11 @@ static void mysizepool_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
 	SP->page_curr = mymem_reserve(SP->page_size_def);
 	SP->page_curr = mymem_commit(SP->page_curr, SP->page_size_def);
 	MY_ASSERT(SP->page_curr);
-	SP->page_head = SP->page_curr;
 }
 
 static uint32_t mysizepool_page_new(mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
-	if (SP->page_cnt < 0xFFFF) {
-		MY_ASSERT(0);
-		return 0;
-	}
+	MY_ASSERT_RETURN(SP->page_cnt < 0xFFFF, 0);
+	
 	SP->page_cnt += 1u;
 	const void* ppage = mymem_reserve(SP->page_size_def);
 	ppage = mymem_commit(ppage, SP->page_size_def);
@@ -392,6 +391,37 @@ static void* mysizepoolmanager_freepage_get(mysizepoolmanager* SM) {
 	SM->freepage = SM->freepage->next;
 	return ptr;
 }
+//O(N)을 막을 방법 ? SP에서 빈 녀석들 개수(o. 가능) 혹은 Page 주소? (x. 불가능)
+static void* slowpath1_5(mysizepool* SP){
+	mypoolpage* PG=SP->page_rest;
+	mypoolpage* PG_prev = NULL;
+	void* ptr;
+	
+	//rest => elem_empty =0 -> N -> N-1
+	if(PG->total > (PG->elem_len - PG->elem_empty)){
+		elem_empty -= 1u;
+		SP->page_rest = PG->next;
+		SP->page_curr = PG;
+		MY_ASSERT(PG->freelist != NULL);
+		ptr = PG->freelist;
+		PG->freelist = PG->freelist->next;
+		return PG->freelist;
+	}
+	
+	while(true){
+		PG_prev = PG;
+		PG = PG->next;
+		if(PG==NULL) break;
+		if(PG->total == (PG->elem_len - PG->elem_empty)) continue;
+		PG_prev->next = PG->next;
+		SP->page_curr = PG;
+		
+		ptr = PG->freelist;
+		PG->freelist = PG->freelist->next;
+		return PG->freelist;
+	}
+	return NULL;
+}
 // 연결 리스트 왔다리 갔다리 하는 쪽에서 문제가 있음.
 static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	//
@@ -410,26 +440,12 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	ptr = mypoolpage_elem_add(SP->page_curr);
 	if (ptr) return ptr;
 
+
+	//slowpath1.5 = from page_rest
+	//O(N)
+	ptr = slowpath1_5(SP);
+	if (ptr) return ptr;
 	
-	//insert full page
-	SP->page_curr->next = SP->page_full;
-	SP->page_full = SP->page_curr;
-
-	//slowpath1.5 = from page_hole
-	while (SP->page_hole) {
-		//change page_curr < = page_hole
-		//mysizepool_holelist_get(SP);
-		SP->page_curr = SP->page_hole;
-		SP->page_hole = SP->page_hole->next;
-
-		ptr = mypoolpage_elem_add(SP->page_curr);
-		if (ptr) return ptr;
-
-		//else
-		SP->page_curr->next = SP->page_full;
-		SP->page_full = SP->page_curr;
-	}
-
 	//slowpath2 = new freepage
 	mypoolpage* PG = mysizepoolmanager_freepage_get(SM);
 	//slowpath3 = no freepage -> new page
@@ -512,18 +528,22 @@ static void mypool_free(void* ptr) {
 	const uintptr_t PH_addr = (r_cast(uintptr_t, ptr) / PAGE_SIZE) * PAGE_SIZE;
 	mypoolpage* const PG = r_cast(mypoolpage*, PH_addr);
 
-	// fastpath 1 : PG->freelist
+	// path1 : PG->freelist
 	PG->freelist = PG->freelist->next;
-
-	//page_full -> page_hole
-	if(PG->elem_empty==PG->elem_total)
 	PG->elem_empty++;
+	
+	// SP->rest
+	if(PG->elem_empty==PG->elem_total);
+	
+	//page_full -> page_rest
+	//if(PG->elem_empty==PG->elem_total)
+	//PG->elem_empty++;
 
-	if (PG->elem_empty < PG->elem_total) return;
-	const uint8_t core_idx = PG->core_id;
-	mysizepoolmanager* SM = &g_poolmng.core[core_idx];
-	SM->freepage;
-	//[PG->memsz_id]
+//	if (PG->elem_empty < PG->elem_total) return;
+//	const uint8_t core_idx = PG->core_id-1u;
+//	mysizepoolmanager* SM = &g_poolmng.core[core_idx];
+//	SM->freepage;
+//	//[PG->memsz_id]
 }
 static void mypool_freeall() {
 }
