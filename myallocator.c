@@ -151,21 +151,21 @@ static const mysize_t g_poolpage_cnt[POOL_SIZE_MAX]
 	63u, 32u, 16u, 8u, 4u,
 	2u };
 
-static mysize_t poolidx_to_size(const uint32_t idx) {
-	MY_ASSERT_RETURN(idx < POOL_SIZE_MAX, POOL_SIZE_MAX - 1u);
-	if (idx >= 6u) {
-		return g_poolsize_map[idx];
+static mysize_t poolidx_to_size(const uint32_t pidx) {
+	MY_ASSERT_RETURN(pidx < POOL_SIZE_MAX, POOL_SIZE_MAX - 1u);
+	if (pidx >= 6u) {
+		return g_poolsize_map[pidx];
 	}
-	return 8u << idx;
+	return 8u << pidx;
 }
-static mysize_t page_head_size_X_get(const mysize_t PGsz, const uint32_t idx) {
-	return max(PGsz / (8u << idx) / 8u, 8u);
+static mysize_t page_head_size_X_get(const mysize_t PGsz, const uint32_t pool_idx) {
+	return max(PGsz / (8u << pool_idx) / 8u, 8u);
 }
-static mysize_t page_head_size_get(const mysize_t PGsz, const uint32_t idx) {
-	return sizeof(mypoolpage) + page_head_size_X_get(PGsz, idx);
+static mysize_t page_head_size_get(const mysize_t PGsz, const uint32_t pool_idx) {
+	return sizeof(mypoolpage) + page_head_size_X_get(PGsz, pool_idx);
 }
-static mysize_t usable_page_size_by_poolidx(const uint32_t idx) {
-	const mysize_t head = page_head_size_get(PAGE_SIZE, idx);
+static mysize_t usable_page_size_by_poolidx(const uint32_t pool_idx) {
+	const mysize_t head = page_head_size_get(PAGE_SIZE, pool_idx);
 	//MY_ASSERT_RETURN(idx <= POOL_SIZE_MAX, POOL_SIZE_MAX);
 	return PAGE_SIZE - head;
 }
@@ -195,9 +195,9 @@ static void* mypoolpage_freelist_get(mypoolpage* PG) {
 }
 
 
-static void* mypoolpage_elem_get(mypoolpage* PG, const uint32_t idx) {
-	uint32_t checksize = page_head_size_X_get(PAGE_SIZE, idx);
-	return (PG->ptr + idx * g_poolsize_map[PG->memsz_idx]);
+static void* mypoolpage_elem_get(mypoolpage* PG, const uint32_t eidx) {
+	uint32_t checksize = page_head_size_X_get(PAGE_SIZE, PG->memsz_idx);
+	return (PG->ptr + checksize + eidx * g_poolsize_map[PG->memsz_idx]);
 }
 static void mypoolpage_init(mypoolpage* PG, mysize_t PG_size, uint8_t core_id, uint8_t pool_idx) {
 	const mysize_t memsz = poolidx_to_size(pool_idx);
@@ -243,6 +243,7 @@ static mypoolpage* mysizepool_page_new(mysizepoolmanager* SM, mysizepool* SP, ui
 
 	SP->page_cnt += 1u;
 	const void* mem = mymem_commit(SM->cachemem, SM->cachesize + SP->page_size_def);
+	MY_ASSERT_RETURN(mem == SM->cachemem, NULL);
 	mypoolpage* page = r_cast(mypoolpage*, (uint8_t*)mem + SM->cachesize);
 	SM->cachesize += SP->page_size_def;
 
@@ -353,10 +354,7 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 		//g_path[4]++;
 		PG = mysizepool_page_new(SM, SP, core_id, pool_idx);
 		MY_LOG_INFO("SlowPath3 : ");
-		if (PG == NULL) {
-			MY_LOG_INFO("All SlowPath Failed: ");
-			return NULL;
-		}
+		MY_ASSERT_RETURN(PG, NULL);
 	}
 	else {
 		//g_path[3]++;
@@ -397,6 +395,7 @@ static uint8_t mypoolmng_new(mysize_t max_threshold, uint8_t cnt) {
 static void mysizepoolmanager_destroy(mysizepoolmanager* SM) {
 	MY_ASSERT_RETURN(SM->cachemem, );
 	mymem_release(SM->cachemem, SM->cachesize);
+	memset(SM, 0, sizeof(mysizepoolmanager));
 	SM->cachesize = 0u;
 }
 //CRITICAL ZONE -> do mutex or lock
@@ -425,7 +424,7 @@ uint8_t mypool_new(mysize_t max_threshold) {
 void* mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms) {
 	const mysize_t size = (len * ms);
 	MY_ASSERT_RETURN(core_id <= MYCORE_MAX, 0);
-	MY_ASSERT_RETURN((size > 0) && (size < _4KB), NULL);
+	MY_ASSERT_RETURN((size > 0) && (size < PAGE_SIZE-sizeof(mypoolpage)-8), NULL);
 
 	uint8_t pool_idx = memsize_to_poolidx(size);
 

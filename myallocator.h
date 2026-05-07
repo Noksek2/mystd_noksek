@@ -121,10 +121,24 @@ static void mymem_release(void* mem, mysize_t capa) {
 }
 #elif MY_OS_LINUX
 static void* mymem_reserve(mysize_t capa) {
+	const mysize_t sz = capa + PAGE_SIZE;
 	//capa = ((capa - 1) / (_1KB * 64) + 1) * (_1KB * 64);
-	void* mem = mmap(NULL, capa, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	MY_ASSERT(p == MAP_FAILED);
-	return mem;
+	void* mem = mmap(NULL, sz, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	MY_ASSERT(mem != MAP_FAILED);
+	
+	const uintptr_t alignment = PAGE_SIZE;
+	uintptr_t addr = (uintptr_t)mem;
+	uintptr_t aligned_addr = (addr + alignment - 1) & ~(alignment - 1);
+	void* aligned_ptr = (void*)aligned_addr;
+
+	// 3. 앞쪽 자투리 반납
+	uintptr_t prefix_gap = aligned_addr - addr;
+	uintptr_t suffix_gap = alignment - prefix_gap;
+	if (prefix_gap > 0u) {
+		munmap(mem, prefix_gap);
+		munmap((char*)aligned_ptr + capa, suffix_gap);
+	}
+	return aligned_ptr;
 }
 static void* mymem_commit(void* mem, mysize_t capa) {
 	mprotect(mem, capa, PROT_READ | PROT_WRITE);

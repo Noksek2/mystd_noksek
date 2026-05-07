@@ -212,9 +212,8 @@ static void mymutex_unlock(mymutex* mut) {
 typedef struct mymutex {
     pthread_mutex_t mut;
     pthread_mutexattr_t attr;
-};
-typedef pthread_mutex_t mymutex;
-static mymutex_init(mymutex* mut) {
+} mymutex;
+static void mymutex_init(mymutex* mut) {
     pthread_mutexattr_init(&mut->attr);
     pthread_mutexattr_settype(&mut->attr, PTHREAD_MUTEX_RECURSIVE);
     // 3. 설정된 속성으로 뮤텍스 초기화
@@ -223,14 +222,14 @@ static mymutex_init(mymutex* mut) {
    // mut->mut = PTHREAD_MUTEX_INITIALIZER;
     //pthread_mutex_lock(mut);
 }
-static mymutex_destroy(mymutex* mut) {
+static void mymutex_destroy(mymutex* mut) {
     pthread_mutex_destroy(&mut->mut);
     pthread_mutexattr_destroy(&mut->attr);
 }
-static mymutex_lock(mymutex* mut) {
+static void mymutex_lock(mymutex* mut) {
     pthread_mutex_lock(&mut->mut);
 }
-static mymutex_unlock(mymutex* mut) {
+static void mymutex_unlock(mymutex* mut) {
     pthread_mutex_unlock(&mut->mut);
 }
 #endif

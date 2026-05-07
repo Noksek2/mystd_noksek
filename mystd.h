@@ -20,7 +20,7 @@ Is there any problem in this code, Please use Issues for bug reports.
     +MYSTD_VERSION_PATCH)
 
 MY_EXTERN_START
-uint8_t g_PM_id;
+extern uint8_t g_PM_id;
 
 extern void  mystd_init();
 extern void  mystd_destroy();

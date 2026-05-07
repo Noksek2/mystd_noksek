@@ -1,42 +1,44 @@
 #include "mystd.h"
-void sample_clock() {
-	puts("=== myclock ===");
-	myclock_t timer,lst,lend;
-	double time, time2;
-	timer = myclock_setclock();
-	time = myclock_getsec(timer);
-	
-	for (volatile int i = 0; i < 1000000; i++) {
-		if (i % 10000 == 0)printf("Wek ");
-		if (i % 15000 == 0)printf("Wak ");
-	}
-	puts("");
-	time2 = myclock_getsec(timer);
-	printf("time : %.6lf\n\n", time2 - time);
-}
-
-void sample_arena() {
-	puts("=== myarena ===");
-	myarena alc;
-	myarena_new(&alc, 1000000);
-	for(volatile int i=0;i< 10;i++)
-		myarena_alloc(&alc, 5000000);
-	myarena_free(&alc);
-}
+#include <unistd.h>
+enum { MAXarr = 100001 };
+//uint32_t g_slowloop = 0;
+//int g_path[5];
 int main() {
-	myclock_t timer, t1, t2;
+	double st, en;
+	myclock_t clock;
+	int* arr[MAXarr] = { 0, };
+	clock = myclock_setclock();
+	mystd_init();
+	void* ptr;
+	//double st, en;
 
-	timer=myclock_setclock();
-	t1=myclock_getsec(timer);
+	printf("N\tM\tPool\tMalloc\n");
+	for (int N = 1000; N < 20001; N += 5000) {
+		for (int M = 8; M < _4KB; M <<= 1) {
+			printf("%u\t%u\t", N, M);
+			st = myclock_getsec(clock);
+			for (int i = 0; i < N; i++) {
+				arr[i] = mypool_alloc(g_PM_id, 1, M);
+			}
+			for (int i = 0; i < N; i++) {
+				mypool_free(arr[i]);
+			}
+			en = myclock_getsec(clock);
+			printf("%.4lf\t", en - st);
+			mypool_destroy();
 
-	puts("=== mystd example code ===");	
-	mystd_print_system_info();
-	sample_clock();
-	sample_arena();
-
-	t2=myclock_getsec(timer);
-	printf("t1:%.6lf, t2:%.6lf\n", t1, t2); 
-	printf("nano:%d\n", myclock_getnanosec(0));
-	printf("progress time %.8lf (sec)\n", t2-t1);
+			st = myclock_getsec(clock);
+			for (int i = 0; i < N; i++) {
+				arr[i] = malloc(M);
+			}
+			for (int i = 0; i < N; i++) {
+				free(arr[i]);
+			}
+			en = myclock_getsec(clock);
+			printf("%.4lf\n", en - st);
+			mypool_new(_64MB*4);
+		}
+	}
+	mystd_destroy();
 	return 0;
 }
