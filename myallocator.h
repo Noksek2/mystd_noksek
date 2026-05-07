@@ -492,7 +492,7 @@ static void mysizepool_hole_push(mypoolpage* PG) {
 	const uint8_t core_idx = PG->core_id - 1u;
 	mysizepoolmanager* SM = &g_poolmng.core[core_idx];
 	mysizepool* SP = &SM->szpool[PG->memsz_idx];
-	g_slowloop++;
+	//g_slowloop++;
 	PG->next = SP->page_hole;
 	SP->page_hole = PG;
 
@@ -505,7 +505,7 @@ static void mysizepool_hole_push(mypoolpage* PG) {
 //	//[PG->memsz_id]
 }
 // 연결 리스트 왔다리 갔다리 하는 쪽에서 문제가 있음.
-extern int g_path[5];
+//extern int g_path[5];
 static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	//
 	const uint8_t core_idx = core_id - 1u;
@@ -544,7 +544,7 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	//ptr = slowpath1_5(SP);
 	ptr = mysizepool_hole_get(SP);
 	if (ptr) {
-		g_path[2]++;
+		//g_path[2]++;
 		MY_LOG_INFO("SlowPath1.5 : ");
 
 		return ptr;
@@ -559,7 +559,7 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	mypoolpage* PG = mysizepoolmanager_freepage_get(SM);
 	//slowpath3 = no freepage -> new page
 	if (PG == NULL) {
-		g_path[4]++;
+		//g_path[4]++;
 		PG = mysizepool_page_new(SM,SP, core_id, pool_idx);
 		MY_LOG_INFO("SlowPath3 : ");
 		if (PG == NULL) {
@@ -568,7 +568,7 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 		}
 	}
 	else {
-		g_path[3]++;
+		//g_path[3]++;
 		MY_LOG_INFO("SlowPath2 : ");
 	}
 	//init page and get elem[0]

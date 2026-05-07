@@ -61,6 +61,10 @@ N=90000 M=64
 Pool   Time : 0.010498
 Malloc Time : 0.022651
 
+N=90000 M=375
+Pool   Time : 0.241770
+Malloc Time : 0.052882
+
 N=90000 M=500
 Pool   Time : 0.249433
 Malloc Time : 0.114241
