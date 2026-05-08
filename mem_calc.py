@@ -31,8 +31,8 @@ def PRINT(PG, Ms):
 		print(f'use{R}, unused{PG-PH-R}')
 import math
 Ms=[8<<i for i in range(0,16)]
-PG=4096*4
-PH=32
+PG=int(input('PG Size (KB): '))*1024
+PH=int(input('PH Size (B): '))
 X=64
 
 

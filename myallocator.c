@@ -141,16 +141,6 @@ void* myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_cap
 
 
 
-static const mysize_t g_poolsize_map[POOL_SIZE_MAX]
-= { 8u, 16u, 32u, 64u, 128u,
-	256u,504u,1016u,2040u,4080u,
-	8168u };
-
-static const mysize_t g_poolpage_cnt[POOL_SIZE_MAX]
-= { 2012u, 1014u, 509u, 255u, 127u,
-	63u, 32u, 16u, 8u, 4u,
-	2u };
-
 static mysize_t poolidx_to_size(const uint32_t pidx) {
 	MY_ASSERT_RETURN(pidx < POOL_SIZE_MAX, POOL_SIZE_MAX - 1u);
 	if (pidx >= 6u) {
@@ -182,14 +172,14 @@ static const uint32_t memsize_to_poolidx(const mysize_t size) {
 //fastpath
 static void* mypoolpage_freelist_get(mypoolpage* PG) {
 	MY_ASSERT(
-		((PG->elem_empty > 0) && PG->freelist != NULL)
-		|| (PG->elem_empty == 0) && PG->freelist == NULL);
+		((PG->elem_empty > 0) && PG->freeoff != NULL)
+		|| (PG->elem_empty == 0) && PG->freeoff == NULL);
 
 	void* ptr = NULL;
-	if (PG->freelist) {
+	if (PG->freeoff) {
 		PG->elem_empty -= 1u;
-		ptr = PG->freelist;
-		PG->freelist = PG->freelist->next;
+		ptr = (void*)((uintptr_t)(PG) + PG->freeoff);
+		PG->freeoff = r_cast(myfreepool*, ptr)->nextoff;
 	}
 	return ptr;
 }
@@ -199,11 +189,11 @@ static void* mypoolpage_elem_get(mypoolpage* PG, const uint32_t eidx) {
 	uint32_t checksize = page_head_size_X_get(PAGE_SIZE, PG->memsz_idx);
 	return (PG->ptr + checksize + eidx * g_poolsize_map[PG->memsz_idx]);
 }
-static void mypoolpage_init(mypoolpage* PG, mysize_t PG_size, uint8_t core_id, uint8_t pool_idx) {
+static void mypoolpage_init(mysizepool* SP, mypoolpage* PG, mysize_t PG_size, uint8_t core_id, uint8_t pool_idx) {
 	const mysize_t memsz = poolidx_to_size(pool_idx);
 	const mysize_t head_size = sizeof(mypoolpage) + page_head_size_X_get(PG_size, pool_idx);
 	memset(PG, 0, head_size);
-	PG->core_id = core_id;
+	PG->pSP = SP;
 	PG->memsz_idx = pool_idx;
 	PG->tag = PAGE_TAG_USING;
 
@@ -225,6 +215,9 @@ static void mysizepool_new(mysizepoolmanager* SM, mysizepool* SP, uint8_t core_i
 	memset(SP, 0, sizeof(mysizepool));
 	SP->page_size_def = PAGE_SIZE;
 	SP->page_cnt = 1u;
+	SP->pSM = SM;
+	SP->page_hole_off = PAGE_HOLE_DEF;
+	
 	//SP->page_curr = mymem_rescommit(SP->page_size_def);
 
 	MY_ASSERT(SM->cachemem);
@@ -232,10 +225,12 @@ static void mysizepool_new(mysizepoolmanager* SM, mysizepool* SP, uint8_t core_i
 	MY_ASSERT_RETURN(SM->cachemem == mem, );
 
 	SP->page_curr = r_cast(mypoolpage*, r_cast(uint8_t*, mem) + SM->cachesize);
+	SP->cachemem = s_cast(uintptr_t, SM->cachemem);
+
 	SM->cachesize += SP->page_size_def;
 
 	MY_ASSERT(SP->page_curr);
-	mypoolpage_init(SP->page_curr, SP->page_size_def, core_id, pool_idx);
+	mypoolpage_init(SP, SP->page_curr, SP->page_size_def, core_id, pool_idx);
 }
 
 static mypoolpage* mysizepool_page_new(mysizepoolmanager* SM, mysizepool* SP, uint8_t core_id, uint8_t pool_idx) {
@@ -247,7 +242,7 @@ static mypoolpage* mysizepool_page_new(mysizepoolmanager* SM, mysizepool* SP, ui
 	mypoolpage* page = r_cast(mypoolpage*, (uint8_t*)mem + SM->cachesize);
 	SM->cachesize += SP->page_size_def;
 
-	mypoolpage_init(page, SP->page_size_def, core_id, pool_idx);
+	mypoolpage_init(SP, page, SP->page_size_def, core_id, pool_idx);
 	return page;
 }
 
@@ -269,27 +264,31 @@ static void* mysizepoolmanager_freepage_get(mysizepoolmanager* SM) {
 	return ptr;
 }
 
-//O(N)을 막을 방법 ? SP에서 빈 녀석들 개수(o. 가능) 혹은 Page 주소? (x. 불가능)
-static void* mysizepool_hole_get(mysizepool* SP) {
-	mypoolpage* PG = SP->page_hole;
+static void* mysizepool_hole_pop(mysizepool* SP) {
+	//PG_curr = page_hole
+	//page_hole
+	uintptr_t PG_addr = SP->cachemem + SP->page_hole_off;
+	mypoolpage* PG = r_cast(mypoolpage*, PG_addr);
 	if (PG == NULL) return NULL;
-	SP->page_hole = SP->page_hole->next;
+	SP->page_hole_off = PG->nextpageoff;
 	SP->page_curr = PG;
-	MY_ASSERT(PG->freelist);
+	MY_ASSERT(PG->freeoff);
 	MY_ASSERT(PG->elem_empty);
-	PG->freelist = PG->freelist->next;
+	
+	myfreepool* FL = r_cast(myfreepool*, PG_addr + PG->freeoff);
+	PG->tag = PAGE_TAG_USING;
+	PG->freeoff = FL->nextoff;
 	PG->elem_empty -= 1u;
 	return PG;
 }
 
 //PG->next를 sizepool로 위치시키는 것도 가능.
 static void mysizepool_hole_push(mypoolpage* PG) {
-	const uint8_t core_idx = PG->core_id - 1u;
-	mysizepoolmanager* SM = &g_poolmng.core[core_idx];
-	mysizepool* SP = &SM->szpool[PG->memsz_idx];
-	//g_slowloop++;
-	PG->next = SP->page_hole;
-	SP->page_hole = PG;
+	mysizepool* SP = PG->pSP;
+	
+	//mypoolpage* r_cast(mypoolpage*, cachemem + SP->page_hole_off);
+	PG->nextpageoff = SP->page_hole_off;
+	SP->page_hole_off = s_cast(uint32_t, (uintptr_t)PG - s_cast(uintptr_t, SP->cachemem));
 
 	//page_full -> page_rest
 	//if(PG->elem_empty==PG->elem_total)
@@ -335,16 +334,14 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	//Page
 
 	//slowpath1.5 = from page_rest
-	ptr = mysizepool_hole_get(SP);
-	if (ptr) {
-		//g_path[2]++;
-		MY_LOG_INFO("SlowPath1.5 : ");
-		return ptr;
-	}
-	else {//Not find
-		//SP->page_curr->next = SP->page_hole;
-		//SP->page_rest = SP->page_curr;
-
+	if (SP->page_hole_off == 1u){}
+	else {
+		ptr = mysizepool_hole_pop(SP);
+		if (ptr) {
+			//g_path[2]++;
+			MY_LOG_INFO("SlowPath1.5 : ");
+			return ptr;
+		}
 	}
 
 	//slowpath2 = new freepage
@@ -430,19 +427,26 @@ void* mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms) {
 
 	const uint8_t core_idx = core_id - 1u;
 	void* ptr = mysizepoolmanager_alloc(core_id, pool_idx);
-	MY_LOG_INFO("ALLOC %X SZ:(%u x %u)", ptr, len, ms);
+	//MY_LOG_INFO("ALLOC %X SZ:(%u x %u)", ptr, len, ms);
 	return ptr;
 }
 
 uint32_t mypool_free(void* ptr) {
-
+	uintptr_t ptr_addr = r_cast(uintptr_t, ptr);
 	const uintptr_t PH_addr = (r_cast(uintptr_t, ptr) / PAGE_SIZE) * PAGE_SIZE;
 	mypoolpage* const PG = r_cast(mypoolpage*, PH_addr);
 
 	// path1 : PG->freelist
-	mypooltag* FL = PG->freelist;
-	PG->freelist = r_cast(mypooltag*, ptr);
-	PG->freelist->next = FL;
+	//myfreepool* prev_FL = r_cast(myfreepool*, PH_addr + prev_freeoff);
+	myfreepool* FL = r_cast(myfreepool*, ptr);
+	
+#ifdef _DEBUG
+	//check;
+#endif
+	
+	FL->nextoff = PG->freeoff;
+	PG->freeoff = s_cast(uint32_t, ptr_addr - PH_addr);
+	
 	PG->elem_empty++;
 
 	// was full page -> partial
@@ -451,6 +455,7 @@ uint32_t mypool_free(void* ptr) {
 	//mysizepoolmanager* const SM = &g_poolmng.core[PG->core_id - 1u];
 	//mysizepool* SP = &SM->szpool[PG->memsz_idx];
 	if (PG->tag == PAGE_TAG_FULL) {
+		PG->tag = PAGE_TAG_HOLE;
 		mysizepool_hole_push(PG);
 	}
 	return true;

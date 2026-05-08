@@ -131,7 +131,7 @@ typedef uint32_t mysize_t;
 typedef int64_t myclock_t;
 
 
-typedef enum {
+enum {
     _8B = 8,
     _16B = 16,
     _32B = 32,

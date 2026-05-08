@@ -23,12 +23,13 @@ Is there any problem in this code, Please use Issues for bug reports.
 //#ifdef POOL_UNSAFE
 
 enum {
+	PAGE_HOLE_DEF = 1,
 	PAGE_TAG_EMPTY = 0b00,
 	PAGE_TAG_HOLE = 0b01,
 	PAGE_TAG_FULL = 0b10,
 	PAGE_TAG_USING = 0b11,
 
-	PAGE_SIZE = _16KB,
+	PAGE_SIZE = _32KB,
 	CACHE_SIZE_DEF = _256KB,
 	MYCORE_MAX=8
 };
@@ -92,6 +93,8 @@ MY_EXTERN_START
 #if MY_OS_WINDOWS
 static void* mymem_reserve(mysize_t capa) {
 	//capa = ((capa - 1) / (_1KB * 64) + 1) * (_1KB * 64);
+	malloc(capa);
+	
 	void* mem = VirtualAlloc(
 		NULL,
 		capa,
@@ -238,50 +241,100 @@ typedef enum {
 	// POOL_2GB,
 	// POOL_4GB,
 	
-} mypoolsize_t;
+} ;
 
+static const mysize_t g_poolsize_map16KB[POOL_SIZE_MAX]
+= { 8u, 16u, 32u, 64u, 128u,
+	256u,504u,1016u,2040u,4080u,
+	8176u };
 
-typedef struct mypooltag {
-	struct mypooltag* next;
-} mypooltag;
+static const mysize_t g_poolpage_cnt16KB[POOL_SIZE_MAX]
+= { 2013u, 1014u, 509u, 255u, 127u,
+	63u, 32u, 16u, 8u, 4u,
+	2u };
+
+static const mysize_t g_poolsize_map32KB[POOL_SIZE_MAX]
+= { 8u, 16u, 32u, 64u, 128u,
+	256u,504u,1016u,2040u,4080u,
+	8184u };
+
+static const mysize_t g_poolpage_cnt32KB[POOL_SIZE_MAX]
+= { 4029u, 2030u, 1019u, 510u, 255u,
+	127u, 64u, 32u, 16u, 8u,
+	4u };
+
+#define g_poolsize_map g_poolsize_map32KB 
+#define g_poolpage_cnt g_poolpage_cnt32KB 
+
+//typedef struct mypooltag {
+//	struct mypooltag* next;
+//} mypooltag;
+struct mysizepoolmanager;
+struct mysizepool;
+typedef struct mysizepoolmanager mysizepoolmanager;
+typedef struct mysizepool mysizepool;
+typedef struct myfreepool {
+	union {
+		uint32_t nextoff;
+	};
+	//struct mypooltag* next;
+} myfreepool;
 
 typedef struct mypoolpage { 
+	//union {
+	//	struct mypoolpage* next; //8
+	//	uintptr_t tag;
+	//};
+	//struct mypooltag* freelist; //8
+	
+	//union{
+	//	
+	//}
 	union {
-		struct mypoolpage* next; //8
-		uintptr_t tag;
+		struct mysizepool* pSP;
+		struct mysizepoolmanager* pSM;
 	};
-	struct mypooltag* freelist; //8
+	uint32_t freeoff;//PAGE +offset
+	uint32_t nextpageoff; //CACHE + off
 	uint16_t elem_total; //
 	uint16_t elem_len;
 	uint16_t elem_empty;
 	uint8_t memsz_idx;//8<<memsz
-	uint8_t core_id;
+	uint8_t tag;
+	//uint8_t core_id;
 	uint8_t ptr[];
 } mypoolpage;//PG
-typedef struct {
-	uint16_t page_cnt;
-	uint16_t page_size_def;//MAX 64KB
-	uint32_t _;
+typedef struct myfreepage {
+	struct myfreepage* next;
+} myfreepage;
+struct mysizepool {
+	struct mysizepoolmanager* pSM;
+	uintptr_t cachemem;
 	mypoolpage* page_curr;
 	//mypoolpage* page_rest;
 	//mypoolpage* page_tail;
 	//mypoolpage* page_full;
-	mypoolpage* page_hole;
-} mysizepool;//SP
-typedef struct {
+	// 
+	uint32_t page_hole_off;//cachemem + off;
+	uint32_t page_cnt;
+	uint32_t page_size_def;//MAX 64KB-1
+	//mypoolpage* page_hole;
+} ;//SP
+
+struct mysizepoolmanager {
 	union {
 		//400B
 		struct {
-			mysizepool szpool[POOL_SIZE_MAX];
+			struct mysizepool szpool[POOL_SIZE_MAX];
 			uint8_t core_id;
 			mysize_t threshold;
-			mypooltag* freepage;
+			myfreepage* freepage;
 			void* cachemem;
 			mysize_t cachesize;
 		};
-		uint8_t _[64*7];
+		uint8_t _[64 * 7];
 	};
-} mysizepoolmanager;//SM
+} ;//SM
 
 typedef struct {
 	mysizepoolmanager core[MYCORE_MAX];
