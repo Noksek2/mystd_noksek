@@ -10,7 +10,7 @@ mymutex g_lock;
 uint8_t g_PM_id;
 void mystd_init() {
     mymutex_init(&g_lock);
-    uint8_t id = mypool_new(_64MB*4);//128MB
+    uint8_t id = mypool_new(_64MB*2);//128MB
     MY_ASSERT(id > 0 && id <= MYCORE_MAX);
     g_PM_id = id;
 }
@@ -50,4 +50,31 @@ void mystd_print_system_info() {
     puts("Arch\t\t: ARM");
 #endif
     puts("-------------------------------------");
+}
+
+static char printable(char c) {
+	if (c == '_' || (c >= '0' && c <= '9') ||
+		(c >= 'a' && c <= 'z')
+		|| (c >= 'A' && c <= 'Z')) return c;
+	return ' ';
+}
+
+
+void myarena_dump(myarena* alc) {
+	puts("ARENA DUMP ");
+	mypage* pg = alc->head;
+	while (pg != NULL) {
+		printf("(%u / %u) \n", pg->len, pg->capa);
+		for (mysize_t i = 0; i < pg->len; i++) {
+			printf("%02X ", pg->ptr[i]);
+			if ((i + 1) % 16 == 0) {
+				printf("| ");
+				for (int j = i - 15; j <= i; j++)
+					printf("%c", printable((char)(pg->ptr[j])));
+				puts("");
+			}
+		}
+
+		pg = pg->next;
+	}
 }
