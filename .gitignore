@@ -1,1 +1,3 @@
-mystd_test
+bin/
+bin_linux/
+bin_win/

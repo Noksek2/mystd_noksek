@@ -1,5 +1,5 @@
 # MyStd (by Noksek)
-## v0.2.0 (dev branch)
+## v0.2.0 (UNSTABLE)
 - unstable yet.
 ## Apache License 2.0
 ## Function/Macro lists
@@ -10,6 +10,8 @@
 #define MYSTD_VERSION_MINOR 2
 #define MYSTD_VERSION_PATCH 0
 
+extern void  mystd_init();
+extern void  mystd_destroy();
 
 typedef uint64_t myclock_t;
 ```
@@ -29,20 +31,6 @@ typedef uint64_t myclock_t;
 
 - `ALLOCATOR_ALLOC(ALC, T, SZ)`
 
-- pool
-```c
-typedef enum {
-	POOLMAP_SIZE = 32,
-	POOL_8B = 0,
-	POOL_16B, POOL_24B,
-	POOL_32B, POOL_40B, POOL_48B, POOL_52B,
-	POOL_64B, POOL_80B, POOL_96B, POOL_112B,
-	POOL_128B, POOL_160B, POOL_192B, POOL_224B,
-	POOL_256B, POOL_320B, POOL_384B, POOL_448B,
-	POOL_512B,
-	...
-} mypoolsize_t
-```
 
 ### mylog.h
 - `MY_LOG_LEVEL`, `MY_LOG_LEVEL_OFF`, `MY_LOG_LEVEL_ERROR`, `MY_LOG_LEVEL_INFO`
@@ -59,8 +47,37 @@ typedef enum {
 
 
 
-## HOW TO USE?
-- CHECK the sample(main.c) please
+## SAMPLE (main.c)
 
+```c
+void test_alloc1()
+{ //bla bla
+}
+void test_alloc2()
+{ //bla bla 
+}
+int main(int argc, char** argv)
+{
+	mystd_
+	test_alloc2();
+	return 0;
+}
+```
+
+- Linux/gcc
+```bash
+$ make
+$ ./bin/mystd_test
+```
+
+- Windows/gcc
+```bat
+>make.bat
+...
+>.\bin\mystd_test
+```
+Executable file `mystd_test` would be created in /bin/ directory
+
+sorry for no msvc yet
 
 ###

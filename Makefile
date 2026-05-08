@@ -1,28 +1,35 @@
 CC = gcc
 CFLAGS = -O2 -D_DEBUG
-TARGET = mystd_test
+TARGET = bin/mystd_test
+BINDIR = bin_linux
+OUTDIR = bin
 
-# 오브젝트 파일 목록 (소스 파일의 .c를 .o로 변경)
-OBJS = mystd.o myallocator.o main.o
+# 오브젝트 파일을 bin_linux 폴더에 생성
+OBJS = $(BINDIR)/mystd.o $(BINDIR)/myallocator.o $(BINDIR)/main.o
 
-all: $(TARGET)
+all: $(BINDIR) $(OUTDIR) $(TARGET)
 
-# 최종 바이너리 링크
+# bin_linux 폴더 생성 (없으면 만듦)
+$(BINDIR):
+	mkdir -p $(BINDIR)
+
+# bin 폴더 생성 (없으면 만듦)
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
+
+# 최종 바이너리 링크 (bin 폴더에 저장)
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
-# 각 소스 파일 컴파일 (의존성 정의)
-# main.c는 mystd.h를 참조함
-main.o: main.c mystd.h
-	$(CC) $(CFLAGS) -c main.c
+# 각 소스 파일 컴파일
+$(BINDIR)/main.o: main.c mystd.h
+	$(CC) $(CFLAGS) -c main.c -o $@
 
-# mystd.c는 mystd.h와 하위 myallocator.h를 참조함
-mystd.o: mystd.c mystd.h myallocator.h
-	$(CC) $(CFLAGS) -c mystd.c
+$(BINDIR)/mystd.o: mystd.c mystd.h myallocator.h
+	$(CC) $(CFLAGS) -c mystd.c -o $@
 
-# myallocator.c는 관련 헤더들(mylog.h, mydef.h 등)에 의존함
-myallocator.o: myallocator.c myallocator.h mylog.h mydef.h
-	$(CC) $(CFLAGS) -c myallocator.c
-	
+$(BINDIR)/myallocator.o: myallocator.c myallocator.h mylog.h mydef.h
+	$(CC) $(CFLAGS) -c myallocator.c -o $@
+
 clean:
-	rm -f $(TARGET) $(OBJS)
+	rm -rf $(BINDIR) $(OUTDIR)
