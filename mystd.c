@@ -1,6 +1,6 @@
-﻿//260427-1
+﻿
 /* Apache License 2.0 (See LICENSE file for details)
-https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.3.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
@@ -8,14 +8,15 @@ Is there any problem in this code, Please use Issues for bug reports.
 mypoolmanager g_poolmng;
 mymutex g_lock;
 uint8_t g_PM_id;
+mycachemem g_cachemem;
 void mystd_init() {
     mymutex_init(&g_lock);
-    uint8_t id = mypool_new(_64MB*2);//128MB
+    uint8_t id = myslowpool_new(_16MB);//128MB
     MY_ASSERT(id > 0 && id <= MYCORE_MAX);
     g_PM_id = id;
 }
 void mystd_destroy() {
-    mypool_destroy();
+    myslowpool_destroy();
     mymutex_destroy(&g_lock);
 }
 void mystd_print_system_info() {
