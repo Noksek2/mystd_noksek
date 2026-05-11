@@ -203,7 +203,7 @@ typedef enum {
    
 
 
-    SLOWPOOL_8B,
+    SLOWPOOL_8B=0u,
     SLOWPOOL_16B,
     SLOWPOOL_32B,
     SLOWPOOL_64B, 
@@ -218,28 +218,28 @@ typedef enum {
     
 } ;
 
-static const mysize_t g_poolsize_map16KB[POOL_SIZE_MAX]
+static const mysize_t g_poolsize_map16KB[SLOWPOOL_SIZE_MAX]
 = { 8u, 16u, 32u, 64u, 128u,
     256u,504u,1016u,2040u,4080u,
     8176u };
 
-static const mysize_t g_poolpage_cnt16KB[POOL_SIZE_MAX]
+static const mysize_t g_poolpage_cnt16KB[SLOWPOOL_SIZE_MAX]
 = { 2013u, 1014u, 509u, 255u, 127u,
     63u, 32u, 16u, 8u, 4u,
     2u };
 
-static const mysize_t g_poolsize_map32KB[POOL_SIZE_MAX]
+static const mysize_t g_poolsize_map32KB[SLOWPOOL_SIZE_MAX]
 = { 8u, 16u, 32u, 64u, 128u,
     256u,504u,1016u,2040u,4080u,
     8184u };
 
-static const mysize_t g_poolpage_cnt32KB[POOL_SIZE_MAX]
+static const mysize_t g_poolpage_cnt32KB[SLOWPOOL_SIZE_MAX]
 = { 4029u, 2030u, 1019u, 510u, 255u,
     127u, 64u, 32u, 16u, 8u,
     4u };
 
-#define g_poolsize_map g_poolsize_map32KB 
-#define g_poolpage_cnt g_poolpage_cnt32KB 
+#define g_poolsize_map g_poolsize_map16KB 
+#define g_poolpage_cnt g_poolpage_cnt16KB 
 
 //typedef struct mypooltag {
 //	struct mypooltag* next;
@@ -304,7 +304,7 @@ struct mysizepoolmanager {
     union {
         //400B
         struct {
-            struct mysizepool szpool[POOL_SIZE_MAX];
+            struct mysizepool szpool[SLOWPOOL_SIZE_MAX];
             uint8_t core_id;
             mysize_t threshold;
             myfreepage* freepage;

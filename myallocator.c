@@ -318,14 +318,14 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t poolidx) {
 	ptr = mypoolpage_elem_inc(SP->page_curr);
 	if (ptr) {
 		//g_path[0]++;
-		MY_LOG_TEST("FastPath1 : ");
+		//MY_LOG_TEST("FastPath1 : ");
 		return ptr;
 	}
 
 	ptr = mypoolpage_freelist_get(SP->page_curr);
 	if (ptr) {
 		//g_path[1]++;
-		MY_LOG_TEST("FastPath2 : ");
+		//MY_LOG_TEST("FastPath2 : ");
 		return ptr;
 	}
 
@@ -339,7 +339,7 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t poolidx) {
 		ptr = mysizepool_hole_pop(SP);
 		if (ptr) {
 			//g_path[2]++;
-			MY_LOG_TEST("SlowPath1.5 : ");
+			//MY_LOG_TEST("SlowPath1.5 : ");
 			return ptr;
 		}
 	}
@@ -350,12 +350,12 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t poolidx) {
 	if (PG == NULL) {
 		//g_path[4]++;
 		PG = mysizepool_page_new(SM, SP, core_id, poolidx);
-		MY_LOG_TEST("SlowPath3 : ");
+		//MY_LOG_TEST("SlowPath3 : ");
 		MY_ASSERT_RETURN(PG, NULL);
 	}
 	else {
 		//g_path[3]++;
-		MY_LOG_TEST("SlowPath2 : ");
+		//MY_LOG_TEST("SlowPath2 : ");
 	}
 	//init page and get elem[0]
 	SP->page_curr = PG;

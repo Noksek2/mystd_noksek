@@ -19,7 +19,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #ifdef NDEBUG
 #define MY_LOG_LEVEL MY_LOG_LEVEL_OFF
 #else
-#define MY_LOG_LEVEL MY_LOG_LEVEL_TEST
+#define MY_LOG_LEVEL MY_LOG_LEVEL_ERROR
 #endif
 #endif
 
