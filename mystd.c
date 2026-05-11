@@ -79,3 +79,13 @@ void myarena_dump(myarena* alc) {
 		pg = pg->next;
 	}
 }
+
+void mypool_dump() {
+	mysizehead* SH;
+	for (int i = 0; i < POOL_SIZE_MAX; i++) {
+		printf("%d\n", i);
+		SH = &g_cachemem.cachehead->SH[i];
+		SH->curr;
+		SH->hole;
+	}
+}

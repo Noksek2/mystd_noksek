@@ -1,4 +1,4 @@
-
+﻿
 /* Apache License 2.0 (See LICENSE file for details)
 https://github.com/Noksek2/mystd_noksek Noksek2 v0.3.0
 Is there any problem in this code, Please use Issues for bug reports.
@@ -9,6 +9,7 @@ typedef struct mystack mystack;
 typedef struct mypair mypair;
 typedef struct mystr mystr;
 typedef struct myvalue myvalue;
+typedef struct myhashmap myhashmap;
 
 enum{
 	HASH_SKIP=1,
@@ -33,10 +34,10 @@ struct myvalue {
 	};
 };
 struct mypair {
-	union{
+	union {
 		struct mystr* key;
 		struct myvalue key_v;
-	}
+	};
 	struct myvalue val;
 };
 
@@ -101,7 +102,7 @@ static mystack mystack_push(mystack* stack, myvalue val){
 }
 static myvalue mystack_pop(mystack* stack){
 	MY_ASSERT(stack->len);
-	stack->val[--stack->len]=val;
+	return stack->val[--stack->len];
 }
 static void mystack_destroy(mystack* stack) {
 	MY_ASSERT(stack->val);
@@ -121,7 +122,7 @@ static mypair* myhashmap_find(myhashmap* map, mystr* key) {
 	MY_ASSERT(key);
 	uint32_t hash = (key->hash);
 	const uint32_t prev_idx = hash % map->capa;
-	const uint32_t idx = prev_idx;
+	uint32_t idx = prev_idx;
 	mypair* pairs;
 	while(true){
 		pairs = &map->pairs[idx];
@@ -130,7 +131,7 @@ static mypair* myhashmap_find(myhashmap* map, mystr* key) {
 			if(pairs->key == key)
 				return pairs;
 		}
-		idx+=1;
+		idx += 1;
 		if(idx==map->capa) idx=0u;
 		else if(idx==prev_idx) break;
 	}
@@ -141,9 +142,9 @@ static mypair* myhashmap_find(myhashmap* map, mystr* key) {
 
 static void myhashmap_add(myhashmap* map, mypair pair) {
 	MY_ASSERT(map->len < map->capa);
-	uint32_t hash = (pair.str->hash);
+	uint32_t hash = (pair.key->hash);
 	const uint32_t prev_idx = hash % map->capa;
-	const uint32_t idx = prev_idx;
+	uint32_t idx = prev_idx;
 	mypair* pairs=&map->pairs[idx];
 	while(true){
 		if(pairs->key == NULL){
@@ -151,7 +152,7 @@ static void myhashmap_add(myhashmap* map, mypair pair) {
 			break;
 		}
 		else if(pairs->key->hash == hash){
-			if(pairs->key == key)
+			if(pairs->key == pair.key)
 				MY_ASSERT_RETURN("DUPLICATED!!",);
 		}
 		idx+=1;
@@ -165,18 +166,17 @@ static void myhashmap_add(myhashmap* map, mypair pair) {
 }
 static void myhashmap_erase(myhashmap* map, mystr* key) {
 	MY_ASSERT(map->len < map->capa);
-	uint32_t hash = (pair.str->hash);
+	uint32_t hash = (key->hash);
 	const uint32_t prev_idx = hash % map->capa;
-	const uint32_t idx = prev_idx;
+	uint32_t idx = prev_idx;
 	mypair* pairs=&map->pairs[idx];
 	while(true){
 		if(pairs->key == NULL){
-			*pairs = pair;
-			break;
+			MY_ASSERT("Not found");
 		}
 		else if(pairs->key->hash == hash){
 			if(pairs->key == key)
-				*pairs=NULL;
+				pairs->key = HASH_SKIP;
 		}
 		idx+=1;
 		if(idx==map->capa) idx=0u;
@@ -189,25 +189,6 @@ static void myhashmap_erase(myhashmap* map, mystr* key) {
 }
 
 
-static mypair* myhashmap_find_key_v(myhashmap* map, myvalue v) {
-	MY_ASSERT(key);
-	uint32_t hash = (key->hash);
-	const uint32_t prev_idx = hash % map->capa;
-	const uint32_t idx = prev_idx;
-	mypair* pairs;
-	while(true){
-		pairs = &map->pairs[idx];
-		if(pairs->key_v==NULL) break;
-		else if(pairs->key_v->hash == hash){
-			if(pairs->key_v == v)
-				return pairs;
-		}
-		idx+=1;
-		if(idx==map->capa) idx=0u;
-		else if(idx==prev_idx) break;
-	}
-	return NULL;
-}
 
 
 

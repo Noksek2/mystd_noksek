@@ -30,6 +30,7 @@ extern void  mystd_destroy();
 extern void  mystd_print_system_info();
 
 extern void myarena_dump(myarena* alc);
+extern void mypool_dump();
 MY_EXTERN_END
 
 #endif

@@ -464,10 +464,6 @@ void myslowpool_destroy() {
 	mypoolmng_destroy();
 }
 
-void pagemem_new() {
-}
-void headmem_new() {
-}
 extern void mycachemem_new(uint32_t size) {
 	mycachemem* CM = &g_cachemem;
 
@@ -475,9 +471,9 @@ extern void mycachemem_new(uint32_t size) {
 	memset(&g_cachemem, 0, sizeof(mycachemem));
 
 	void* phead;
-	phead = mymem_reserve(sizeof(mycachehead) + (size / sizeof(mypagehead)));
-	CM->cachehead = mymem_commit(phead, _4KB);
-	CM->commit_page_cnt = (_4KB - sizeof(mycachehead)) / sizeof(mypagehead);
+	phead = mymem_reserve(sizeof(mycachehead) + (size / sizeof(mypagedata))*sizeof(mypagehead));
+	CM->cachehead = mymem_commit(phead, _8KB);
+	CM->commit_page_cnt = (_8KB - sizeof(mycachehead)) / sizeof(mypagehead);
 
 	uintptr_t pagehead_addr = s_cast(uintptr_t, CM->cachehead + 1);
 	CM->headmem = r_cast(mypagehead*, pagehead_addr);
@@ -486,53 +482,73 @@ extern void mycachemem_new(uint32_t size) {
 	CM->pagemem = mymem_reserve(size);
 	CM->page_cnt = 0u;
 
-	for (int i = 0; i < POOL_SIZE_MAX; i++)
+	for (int i = 0; i < POOL_SIZE_MAX; i++) {
 		CM->cachehead->SH[i].poolidx = i;
+		CM->cachehead->SH[i].poolsize = getpoolsize(i);
+	}
 }
+
 extern void mycachemem_commit(mycachehead* CH) {
 }
-static void mypagehead_init(mypagehead* PH, uint32_t poolidx) {
-	const uint32_t poolsize = getpoolsize(poolidx);
-	PH->poolidx = poolidx;
+static void mypagehead_init(mysizehead* SH) {
+	mypagehead* PH = SH->curr;
+	memset(PH, 0, sizeof(mypagehead));
+	PH->poolidx = SH->poolidx;
+	PH->poolsize = SH->poolsize;
 	PH->pagetag = PAGE_TAG_USING;
-	PH->elem_total = PAGE_SIZE / poolsize;
-	PH->elem_cnt = 0u;
-	PH->elem_empty = 0u;
-	MY_LOG_TEST("NEW POOL PAGEHEAD size:%u (idx:%u, elem:%u)", poolsize, poolidx, PH->elem_total);
+	PH->elem_total = PAGE_SIZE / SH->poolsize;
+	MY_LOG_TEST("NEW POOL PAGEHEAD size:%u (idx:%u, elem:%u)", PH->poolsize, PH->poolidx, PH->elem_total);
 }
 void* mypool_newpage(mysizehead* SH) {
 	mycachemem* CM = &g_cachemem;
 	if (CM->page_cnt == CM->commit_page_cnt) {
-		const uint32_t commem = CM->commit_page_cnt * sizeof(mypagehead) + sizeof(mycachehead);
-		CM->headmem = mymem_commit(CM->headmem + CM->commit_page_cnt, PAGE_SIZE);
-		MY_ASSERT_RETURN(CM->headmem, NULL);
-	}
-	if (CM->page_cnt == CM->commit_page_cnt || CM->page_cnt == 0u) {
+		MY_LOG_TEST("COMMIT! 4KB +256KB (head, Page cnt+=64)");
+		void* ptr = mymem_commit(CM->headmem + CM->commit_page_cnt, PAGE_SIZE);
+		MY_ASSERT_RETURN(ptr, NULL);
 		CM->commit_page_cnt += PAGE_SIZE / sizeof(mypagehead);
 		CM->pagemem = mymem_commit(CM->pagemem, CM->commit_page_cnt * PAGE_SIZE);
 		MY_ASSERT_RETURN(CM->pagemem, NULL);
 	}
+	else if (CM->page_cnt == 0u) {
+		CM->pagemem = mymem_commit(CM->pagemem, CM->commit_page_cnt * PAGE_SIZE);
+		//if(CM->pagemem)
+		MY_ASSERT_RETURN(CM->pagemem, NULL);
+	}
 	SH->curr = CM->headmem + CM->page_cnt++;
 
-	mypagehead_init(SH->curr, SH->poolidx);
+	mypagehead_init(SH);
 	return SH->curr;
 }
 void* mypool_freelist_get(mypagehead* PH, mypagedata* PD) {
 	PH->elem_empty -= 1u;
-	MY_ASSERT(PH->nextlist);
-
-	void* ptr = PH->nextlist;
-	PH->nextlist = PH->nextlist->next;
+	MY_ASSERT(PH->nextoff);
+	myfreelist* ptr = r_cast(myfreelist*, &PD->data[(PH->nextoff - 1)]);
+	PH->nextoff = ptr->nextoff;
 	return ptr;
 }
-void mypool_new(mysize_t max_threshold) {
-	mycachemem_new(max_threshold);
+void* mypool_freelist_push(mypagehead* PH, void* ptr) {
+}
+//void mypool_freepage_get(mycachemem* CM, mysizehead* SH) {
+//	SH->curr = CM->freepage;
+//	SH->curr->pagetag = PAGE_TAG_USING;
+//	CM->freepage = CM->freepage->nextPH;
+//	CM->freepage->nextPH
+//}
+//void mypool_freepage_push(mycachemem* CM, mysizehead* SH) {
+//	SH->curr = CM->freepage;
+//	SH->curr->pagetag = PAGE_TAG_USING;
+//	CM->freepage = CM->freepage->nextPH;
+//	CM->freepage->nextPH
+//}
+//4MB = 4KB * 1024 + head(64KB)
+void mypool_new(mysize_t page_threshold) {
+	mycachemem_new(page_threshold);
 }
 void* mypool_alloc(mysize_t len) {
 	mycachemem* CM = &g_cachemem;
 	MY_ASSERT_RETURN(len > 0u && len < _4KB, NULL);
 	uint32_t idx = getpoolidx(len);
-	uint32_t size = getpoolsize_from_len(len); //(8 << (idx / 2)) + (4 << (idx / 2)) * (idx & 1);
+	uint32_t size = getpoolsize(idx); //(8 << (idx / 2)) + (4 << (idx / 2)) * (idx & 1);
 	mysizehead* SH = &CM->cachehead->SH[idx];
 	mypagedata* PD = NULL;
 	MY_LOG_TEST("size %u: poolidx(%d, %u)", len, idx, size);
@@ -557,14 +573,18 @@ void* mypool_alloc(mysize_t len) {
 	PH->pagetag = PAGE_TAG_FULL;
 	if (SH->hole) {
 		MY_LOG_TEST("PAGE FULL : %X(page no.%u) , FIND HOLE %X(page no.%u)",
-					PH, (PH - CM->headmem), SH->hole, (SH->hole - CM->headmem));
+					PH, get_pageno_PH(PH), SH->hole, get_pageno_PH(SH->hole));
 		SH->curr = SH->hole;
 		SH->hole = SH->hole->nextPH;
 		PH = SH->curr;
 		PH->pagetag = PAGE_TAG_USING;
 	}
+	else if (false&&CM->freepage) {
+		//mypool_freepage_get(CM,SH);
+	}
 	else {
 		const mypagehead* pPH = PH;
+		
 		//freepage get
 		PH = mypool_newpage(SH);
 		MY_LOG_TEST("PAGE FULL : %X(page no.%u), NEW Page %X(page no.%u)",
@@ -586,25 +606,48 @@ void mypool_alloc_by() {
 
 }
 void mypool_free(void* ptr) {
+	//ptr -> PagePtr
+	//PagePtr -> Poolsize
+	//elem_no
 	mycachemem* CM = &g_cachemem;
-	uintptr_t page_no = (s_cast(uintptr_t, ptr) - s_cast(uintptr_t, CM->pagemem)) / PAGE_SIZE;
+	const uintptr_t elem_PH_off = s_cast(uintptr_t, ptr) - s_cast(uintptr_t, CM->pagemem);
+	const uintptr_t page_no = elem_PH_off / PAGE_SIZE;
+	
 	mypagehead* PH = &CM->headmem[page_no];
-	MY_ASSERT(PH->pagetag != PAGE_TAG_EMPTY);
+	MY_ASSERT(PH->elem_empty < PH->elem_total);
+	const uintptr_t elemoff = (s_cast(uintptr_t, ptr) % PAGE_SIZE);
+
+
 	PH->elem_empty += 1u;
 
-	if (PH->elem_empty == PH->elem_total)
-		PH->pagetag = PAGE_TAG_EMPTY;
-
-	if (PH->pagetag == PAGE_TAG_FULL) {
-		mypagehead** const holePH = &CM->cachehead->SH[PH->poolidx].hole;
-		PH->nextPH = *holePH;
-		*holePH = PH;
-
-		PH->pagetag = PAGE_TAG_HOLE;
-	}
-	MY_ASSERT((s_cast(uintptr_t, ptr) % PAGE_SIZE) % getpoolsize(PH->poolidx) == 0);
-	r_cast(myfreelist*, ptr)->next = PH->nextlist;
-	PH->nextlist = ptr;
+	//HOLE
+	//if (PH->elem_empty == PH->elem_total) {
+	//	if (PH->prevPH) {
+	//
+	//	}
+	//	if (PH->prevPHidx) {
+	//		(CM->headmem + (PH->prevPHidx - 1))->nextPH = PH->nextPH;
+	//		PH->prevPHidx = 0u;
+	//	}
+	//	if (PH->nextPH) {
+	//		PH->nextPH->prev
+	//		(CM->headmem + (PH->prevPHidx - 1))->nextPH = PH->nextPH;
+	//		PH->prevPHidx = 0u;
+	//	}
+	//	PH->nextPH = CM->freepage;
+	//	CM->freepage = PH;
+	//}
+	//if (PH->pagetag == PAGE_TAG_FULL) {
+	//	mypagehead** const holePH = &CM->cachehead->SH[PH->poolidx].hole;
+	//	PH->nextPH = *holePH;
+	//	PH->prevPHidx = 0u;
+	//	(*holePH)->prevPHidx = (PH - g_cachemem.headmem) + 1u;
+	//	*holePH = PH;
+	//}
+	
+	MY_ASSERT((s_cast(uintptr_t, ptr) % PAGE_SIZE) % (PH->poolsize) == 0);
+	r_cast(myfreelist*, ptr)->nextoff = PH->nextoff;
+	PH->nextoff = elemoff + 1u;
 	MY_LOG_TEST("FREE %X (Page no.%u, elem no.%u)", ptr, 
 				page_no, 
 				((uintptr_t)(ptr) - (uintptr_t)(&CM->pagemem[page_no])) / getpoolsize(PH->poolidx));

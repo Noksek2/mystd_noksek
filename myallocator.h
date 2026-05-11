@@ -196,8 +196,7 @@ typedef enum {
     POOL_128B, POOL_192B,
     POOL_256B, POOL_384B,
     POOL_512B, POOL_768B,
-    POOL_1KB, POOL_1_5KB,
-    POOL_2KB, 
+    POOL_1KB, 
     POOL_SIZE_MAX,
     POOL_4KB, 
     POOL_8KB,
@@ -282,11 +281,9 @@ typedef struct mypoolpage {
     uint8_t ptr[];
 } mypoolpage;//PG
 typedef struct myfreelist {
-    struct myfreelist* next;
+    uint32_t nextoff;
+    //struct myfreelist* next;
 } myfreelist;
-typedef struct myfreepage {
-    struct myfreepage* next;
-} myfreepage;
 struct mysizepool {
     struct mysizepoolmanager* pSM;
     uintptr_t cachemem;
@@ -300,7 +297,9 @@ struct mysizepool {
     uint32_t page_size_def;//MAX 64KB-1
     //mypoolpage* page_hole;
 } ;//SP
-
+typedef struct myfreepage {
+    struct myfreepage* next;
+} myfreepage;
 struct mysizepoolmanager {
     union {
         //400B
@@ -325,15 +324,17 @@ typedef struct {
 // nextlist, nextpage는 실제로는 4바이트 이하로 압축이 가능함. 
 // 단 포인터 접근을 빠르게 하려는 목적임.
 typedef struct mypagehead {
-    struct myfreelist* nextlist;//8
-    struct mypagehead* nextPH;//8
+    struct mypagehead* nextPH;
+    struct mypagehead* prevPH;
     uint32_t elem_empty;//4B
     uint32_t elem_total;//4B
     
     uint32_t elem_cnt;//4B
+    uint32_t nextoff;//8의 배수. elemno가 아님.
     uint16_t poolidx; //4B
-    uint16_t pagetag; //4B PAGE_TAG_USING, FULL, HOLE, EMPTY
-    uint32_t _[8];//4B*8
+    uint16_t poolsize; //4B
+    uint16_t pagetag; //4B
+    uint32_t _[6];//4B*8
 } mypagehead;
 //head의 구조체는 4KB당 64B를 저장하는 목적. (64배)
 //4,194,304KB=4GB -> head는 65,536KB(64MB)
@@ -342,11 +343,16 @@ typedef struct mypagehead {
 typedef struct mysizehead {
     struct mypagehead* curr;
     struct mypagehead* hole;
-    uint32_t coreID;
-    uint32_t poolidx;
+    uint32_t poolsize;
+    uint16_t poolidx;
+    uint16_t coreID;
+    uint64_t _;
 } mysizehead;
+//4KB
 typedef struct mycachehead {
     struct mysizehead SH[POOL_SIZE_MAX];
+    struct mysizehead SH_core[MYCORE_MAX][POOL_SIZE_MAX];
+    uint8_t _[64];
 } mycachehead;
 
 typedef struct mypagedata {
@@ -355,10 +361,14 @@ typedef struct mypagedata {
     //};
 } mypagedata;
 
+//cachehead(448?) + headmem(~)
 //4GB가 한계 (실제로는 더 적음)
+// 초기: cachehead(448) + Page_cnt = 57개
+// Pagemem = 4KB*57=228KB
+// 페이지 추가 : 57 + 64(4096/64)=121
 typedef struct mycachemem {
     mycachehead* cachehead; //8
-    mypagehead* headmem; //8
+    mypagehead* headmem; //8 
     mypagedata* pagemem; //8
     mypagehead* freepage;
     uint32_t page_cnt; //4
@@ -372,6 +382,14 @@ typedef struct mycachemem {
 extern mycachemem g_cachemem;
 extern mypoolmanager g_poolmng;
 extern mymutex g_lock;
+
+
+
+extern void* myslowpool_alloc(uint8_t core_id, mysize_t len, mysize_t ms);
+extern uint32_t myslowpool_free(void* ptr);
+extern void     myslowpool_destroy();
+extern uint8_t  myslowpool_new(mysize_t max_threshold);
+
 
 // this_page == page_rest | page_curr -> SP -> freepage 가능?
 // extern void*    mypool_alloc(uint8_t core_id, mysize_t len, mysize_t ms);
@@ -432,15 +450,35 @@ static uint32_t getpoolsize_from_len(uint32_t i) {
     return 13;
 }
 
-extern void*    myslowpool_alloc(uint8_t core_id, mysize_t len, mysize_t ms);
-extern uint32_t myslowpool_free(void* ptr);
-extern void     myslowpool_destroy();
-extern uint8_t  myslowpool_new(mysize_t max_threshold);
+
+static inline uint32_t get_pageno_PH(mypagehead* PH) {
+    return (uint32_t)(PH - g_cachemem.headmem);
+}
+static inline uint32_t get_pageno_ptr(void* ptr) {
+    uintptr_t addr = ptr;
+    return (uint32_t)((addr - s_cast(uintptr_t, g_cachemem.pagemem)) / PAGE_SIZE);
+}
+
+static inline mypagehead* get_PH_ptr(void* ptr) {
+    uintptr_t addr = ptr;
+    const uint32_t pageno = get_pageno_ptr(ptr);
+    return g_cachemem.headmem + pageno;
+}
+
+static inline uint32_t get_elemno_ptr(void* ptr) {
+    uintptr_t addr = ptr;
+    const uint32_t pageno
+        //= pageno_get_by_ptr(ptr);
+        = ((addr - s_cast(uintptr_t, g_cachemem.pagemem)) / PAGE_SIZE);
+    const uint32_t poolsize = getpoolsize((g_cachemem.headmem + pageno)->poolidx);
+    return (addr - s_cast(uintptr_t, g_cachemem.pagemem + pageno)) / poolsize;
+}
 
 extern void*    mypool_alloc(mysize_t len);
 extern void     mypool_free(void* ptr);
 extern void     mypool_destroy();
 extern void     mypool_new(mysize_t max_threshold);
+
 
 extern void  myarena_new(myarena* alc, mysize_t arena_size);
 extern void* myarena_alloc(myarena* alc, mysize_t len);
