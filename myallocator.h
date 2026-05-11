@@ -455,18 +455,18 @@ static inline uint32_t get_pageno_PH(mypagehead* PH) {
     return (uint32_t)(PH - g_cachemem.headmem);
 }
 static inline uint32_t get_pageno_ptr(void* ptr) {
-    uintptr_t addr = ptr;
+    uintptr_t addr = s_cast(uintptr_t, ptr);
     return (uint32_t)((addr - s_cast(uintptr_t, g_cachemem.pagemem)) / PAGE_SIZE);
 }
 
 static inline mypagehead* get_PH_ptr(void* ptr) {
-    uintptr_t addr = ptr;
+    uintptr_t addr = s_cast(uintptr_t, ptr);
     const uint32_t pageno = get_pageno_ptr(ptr);
     return g_cachemem.headmem + pageno;
 }
 
 static inline uint32_t get_elemno_ptr(void* ptr) {
-    uintptr_t addr = ptr;
+    uintptr_t addr = s_cast(uintptr_t, ptr);
     const uint32_t pageno
         //= pageno_get_by_ptr(ptr);
         = ((addr - s_cast(uintptr_t, g_cachemem.pagemem)) / PAGE_SIZE);
