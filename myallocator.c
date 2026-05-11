@@ -472,8 +472,8 @@ extern void mycachemem_new(uint32_t size) {
 
 	void* phead;
 	phead = mymem_reserve(sizeof(mycachehead) + (size / sizeof(mypagedata))*sizeof(mypagehead));
-	CM->cachehead = mymem_commit(phead, _8KB);
-	CM->commit_page_cnt = (_8KB - sizeof(mycachehead)) / sizeof(mypagehead);
+	CM->cachehead = mymem_commit(phead, sizeof(mycachehead) + _4KB);
+	CM->commit_page_cnt = ((_4KB) / sizeof(mypagehead));
 
 	uintptr_t pagehead_addr = s_cast(uintptr_t, CM->cachehead + 1);
 	CM->headmem = r_cast(mypagehead*, pagehead_addr);

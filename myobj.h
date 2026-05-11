@@ -74,9 +74,10 @@ MY_EXTERN_START;
 //mystr
 static mystr* mystr_new(const char* buf) {
 	mystr* str;
-	const uint32_t len = strlen(buf) - 1;
+	const uint32_t len = strlen(buf);
 	str = mypool_alloc(len + sizeof(mystr));
 	MY_ASSERT_RETURN(str, NULL);
+	memmove(str->ptr, buf, len);
 	str->hash = make_hash_u8(buf, len);
 	str->len = len;
 	return str;
@@ -140,13 +141,14 @@ static mypair* myhashmap_find(myhashmap* map, mystr* key) {
 
 //can add duplicating? data
 
-static void myhashmap_add(myhashmap* map, mypair pair) {
+static uint32_t myhashmap_add(myhashmap* map, mypair pair) {
 	MY_ASSERT(map->len < map->capa);
 	uint32_t hash = (pair.key->hash);
 	const uint32_t prev_idx = hash % map->capa;
 	uint32_t idx = prev_idx;
-	mypair* pairs=&map->pairs[idx];
+	mypair* pairs;
 	while(true){
+		pairs = &map->pairs[idx];
 		if(pairs->key == NULL){
 			*pairs = pair;
 			break;
@@ -163,20 +165,24 @@ static void myhashmap_add(myhashmap* map, mypair pair) {
 		}
 	}
 	map->len++;
+	return idx;
 }
-static void myhashmap_erase(myhashmap* map, mystr* key) {
+static uint32_t myhashmap_erase(myhashmap* map, mystr* key) {
 	MY_ASSERT(map->len < map->capa);
 	uint32_t hash = (key->hash);
 	const uint32_t prev_idx = hash % map->capa;
 	uint32_t idx = prev_idx;
-	mypair* pairs=&map->pairs[idx];
+	mypair* pairs;
 	while(true){
+		pairs = &map->pairs[idx];
 		if(pairs->key == NULL){
 			MY_ASSERT("Not found");
 		}
 		else if(pairs->key->hash == hash){
-			if(pairs->key == key)
+			if (pairs->key == key) {
 				pairs->key = HASH_SKIP;
+				break;
+			}
 		}
 		idx+=1;
 		if(idx==map->capa) idx=0u;
@@ -186,6 +192,7 @@ static void myhashmap_erase(myhashmap* map, mystr* key) {
 		}
 	}
 	map->len++;
+	return idx;
 }
 
 
@@ -203,6 +210,43 @@ static void myhashmap_destroy(myhashmap* map) {
 	}
 }
 
+static void myvalue_print(myvalue v) {
+	printf("%llX", v.u);
+}
+static void myprintf(const char* buf,...) {
+	va_list v;
+	va_start(v, buf);
+	char* pbuf = buf;
+	myvalue val;
+
+	while (*pbuf != '\0') {
+		if (*pbuf == '%') {
+			pbuf++;
+			switch (*pbuf) {
+			case 'v': 
+				val = va_arg(v, myvalue);
+				myvalue_print(val);
+				break;
+			case 'd':
+				printf("%d", va_arg(v, int));
+				break;
+			case 's':
+				printf("%s", va_arg(v, const char*));
+				break;
+			default:
+				MY_ASSERT(0);
+				goto redo;
+			}
+			
+		}
+		else {
+			putchar(*pbuf);
+		}
+		pbuf++;
+	redo:;
+	}
+
+}
 MY_EXTERN_END;
 /*
 

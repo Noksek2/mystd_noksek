@@ -11,12 +11,12 @@ uint8_t g_PM_id;
 mycachemem g_cachemem;
 void mystd_init() {
     mymutex_init(&g_lock);
-    uint8_t id = myslowpool_new(_16MB);//128MB
-    MY_ASSERT(id > 0 && id <= MYCORE_MAX);
-    g_PM_id = id;
+    //uint8_t id = myslowpool_new(_16MB);//128MB
+    //MY_ASSERT(id > 0 && id <= MYCORE_MAX);
+    //g_PM_id = id;
 }
 void mystd_destroy() {
-    myslowpool_destroy();
+    //myslowpool_destroy();
     mymutex_destroy(&g_lock);
 }
 void mystd_print_system_info() {
