@@ -1,6 +1,6 @@
 ﻿//260427-1
 /* Apache License 2.0 (See LICENSE file for details)
-https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.0
+https://github.com/Noksek2/mystd_noksek Noksek2 v0.2.1
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
@@ -286,59 +286,43 @@ static void* mysizepool_hole_pop(mysizepool* SP) {
 static void mysizepool_hole_push(mypoolpage* PG) {
 	mysizepool* SP = PG->pSP;
 	
-	//mypoolpage* r_cast(mypoolpage*, cachemem + SP->page_hole_off);
 	PG->nextpageoff = SP->page_hole_off;
 	SP->page_hole_off = s_cast(uint32_t, (uintptr_t)PG - s_cast(uintptr_t, SP->cachemem));
 
-	//page_full -> page_rest
-	//if(PG->elem_empty==PG->elem_total)
-	//PG->elem_empty++;
-
-//	if (PG->elem_empty < PG->elem_total) return;
-//	SM->freepage;
-//	//[PG->memsz_id]
 }
 // 연결 리스트 왔다리 갔다리 하는 쪽에서 문제가 있음.
 //extern int g_path[5];
 static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	//
 	const uint8_t core_idx = core_id - 1u;
-	//여기 접근이 매우 느림
 	mysizepoolmanager* const SM = &g_poolmng.core[core_idx];
 	mysizepool* SP = &SM->szpool[pool_idx];
 	if (SP->page_curr == NULL) {
 		MY_LOG_INFO("Init mysizepool (CID:%u POOL%uB)", core_id, 8u << pool_idx);
 		mysizepool_new(SM, SP, core_id, pool_idx);
-		//New SP;
 	}
 	void* ptr = NULL;
-	//fastpath
 
-	//slowpath1 = inc element
 	ptr = mypoolpage_elem_inc(SP->page_curr);
 	if (ptr) {
-		//g_path[0]++;
 		MY_LOG_INFO("FastPath1 : ");
 		return ptr;
 	}
 
 	ptr = mypoolpage_freelist_get(SP->page_curr);
 	if (ptr) {
-		//g_path[1]++;
 		MY_LOG_INFO("FastPath2 : ");
 		return ptr;
 	}
 
 	SP->page_curr->tag = PAGE_TAG_FULL;
 	SP->page_curr = NULL;
-	//Page
-
-	//slowpath1.5 = from page_rest
+	
+	//slowpath1
 	if (SP->page_hole_off == 1u){}
 	else {
 		ptr = mysizepool_hole_pop(SP);
 		if (ptr) {
-			//g_path[2]++;
 			MY_LOG_INFO("SlowPath1.5 : ");
 			return ptr;
 		}
@@ -348,13 +332,11 @@ static void* mysizepoolmanager_alloc(uint8_t core_id, uint8_t pool_idx) {
 	mypoolpage* PG = mysizepoolmanager_freepage_get(SM);
 	//slowpath3 = no freepage -> new page
 	if (PG == NULL) {
-		//g_path[4]++;
 		PG = mysizepool_page_new(SM, SP, core_id, pool_idx);
 		MY_LOG_INFO("SlowPath3 : ");
 		MY_ASSERT_RETURN(PG, NULL);
 	}
 	else {
-		//g_path[3]++;
 		MY_LOG_INFO("SlowPath2 : ");
 	}
 	//init page and get elem[0]
