@@ -326,7 +326,7 @@ typedef struct {
 // 단 포인터 접근을 빠르게 하려는 목적임.
 typedef struct mypagehead {
     struct myfreelist* nextlist;//8
-    struct myfreepage* nextpage;//8
+    struct mypagehead* nextPH;//8
     uint32_t elem_empty;//4B
     uint32_t elem_total;//4B
     
@@ -346,7 +346,7 @@ typedef struct mysizehead {
     uint32_t poolidx;
 } mysizehead;
 typedef struct mycachehead {
-    struct mysizehead sz[POOL_SIZE_MAX];
+    struct mysizehead SH[POOL_SIZE_MAX];
 } mycachehead;
 
 typedef struct mypagedata {
@@ -360,10 +360,11 @@ typedef struct mycachemem {
     mycachehead* cachehead; //8
     mypagehead* headmem; //8
     mypagedata* pagemem; //8
+    mypagehead* freepage;
     uint32_t page_cnt; //4
     uint32_t commit_page_cnt; //4
     uint32_t reserved_page_cnt;
-    uint8_t _[24];
+    uint8_t _[16];
 } mycachemem;
 
 //얘도 가급적 64B
@@ -378,6 +379,58 @@ extern mymutex g_lock;
 // extern void     mypool_destroy();
 // extern uint8_t  mypool_new(mysize_t max_threshold);
 
+// globalmem [cachehead {pagecurr[MAXPOOLIDX], pagehole[MAXPOOLIDX]}: B] [PageHead0] [PageHead1] ...
+static uint32_t getpoolidx(uint32_t i) {
+    if (i <= 8)                return 0;
+    else if (i <= 16)          return 1;
+    else if (i <= 24)          return 2;
+    else if (i <= 32)          return 3;
+    else if (i <= 48)          return 4;
+    else if (i <= 64)          return 5;
+    else if (i <= 96)          return 6;
+    else if (i <= 128)         return 7;
+    else if (i <= 192)         return 8;
+    else if (i <= 256)         return 9;
+    else if (i <= 384)         return 10;
+    else if (i <= 512)         return 11;
+    else if (i <= 1024)        return 12;
+    return 13;
+}
+static uint32_t getpoolsize(uint32_t idx) {
+    switch (idx) {
+    case 0:        return 8;
+    case 1:        return 16;
+    case 2:        return 24;
+    case 3:        return 32;
+    case 4:        return 48;
+    case 5:        return 64;
+    case 6:        return 96;
+    case 7:        return 128;
+    case 8:        return 192;
+    case 9:        return 256;
+    case 10:       return 384;
+    case 11:       return 512;
+    case 12:       return 1024;
+    }
+    return 1024;
+}
+static uint32_t getpoolsize_from_len(uint32_t i) {
+    if (i <= 8)                return 8;
+    if (i <= 12)               return 16;
+    else if (i <= 16)          return 16;
+    else if (i <= 24)          return 24;
+    else if (i <= 32)          return 32;
+    else if (i <= 48)          return 48;
+    else if (i <= 64)          return 64;
+    else if (i <= 96)          return 96;
+    else if (i <= 128)         return 128;
+    else if (i <= 192)         return 192;
+    else if (i <= 256)         return 256;
+    else if (i <= 384)         return 384;
+    else if (i <= 512)         return 512;
+    else if (i <= 1024)        return 1024;
+    return 13;
+}
 
 extern void*    myslowpool_alloc(uint8_t core_id, mysize_t len, mysize_t ms);
 extern uint32_t myslowpool_free(void* ptr);

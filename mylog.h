@@ -13,12 +13,13 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define MY_LOG_LEVEL_OFF 0
 #define MY_LOG_LEVEL_ERROR 1
 #define MY_LOG_LEVEL_INFO 2
+#define MY_LOG_LEVEL_TEST 3
 
 #ifndef MY_LOG_LEVEL
 #ifdef NDEBUG
 #define MY_LOG_LEVEL MY_LOG_LEVEL_OFF
 #else
-#define MY_LOG_LEVEL MY_LOG_LEVEL_OFF
+#define MY_LOG_LEVEL MY_LOG_LEVEL_TEST
 #endif
 #endif
 
@@ -34,6 +35,12 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define MY_LOG_INFO(fmt, ...)  fprintf(stdout, "[INFO] " fmt "\n", ##__VA_ARGS__)
 #else
 #define MY_LOG_INFO(fmt, ...)  ((void)0)
+#endif
+
+#if MY_LOG_LEVEL >= MY_LOG_LEVEL_TEST
+#define MY_LOG_TEST(fmt, ...)  fprintf(stdout, "[INFO] " fmt "\n", ##__VA_ARGS__)
+#else
+#define MY_LOG_TEST(fmt, ...)  ((void)0)
 #endif
 
 #ifdef NDEBUG
