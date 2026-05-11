@@ -118,6 +118,6 @@ int test_alloc1()
 }
 
 int main() {
-	test_alloc2();
+	test_alloc1();
 	return 0;
 }
