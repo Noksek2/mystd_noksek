@@ -98,16 +98,16 @@ void test_alloc_main()
             //int M = g_poolsize_map[pi];
             int M = getpoolsize(pi);
             printf("%u\t%u\t", N, M);
-            //st = myclock_getsec(clock);
-            //for (int i = 0; i < N; i++) {
-            //    arr[i] = myslowpool_alloc(g_PM_id, 1, M);
-            //}
-            //for (int i = 0; i < N; i++) {
-            //    myslowpool_free(arr[i]);
-            //}
-            //en = myclock_getsec(clock);
-            //printf("%.4lf\t", en - st);
-            //myslowpool_destroy();
+            st = myclock_getsec(clock);
+            for (int i = 0; i < N; i++) {
+                arr[i] = myslowpool_alloc(g_PM_id, 1, M);
+            }
+            for (int i = 0; i < N; i++) {
+                myslowpool_free(arr[i]);
+            }
+            en = myclock_getsec(clock);
+            printf("%.4lf\t", en - st);
+            myslowpool_destroy();
             mypool_new(_64MB);
             st = myclock_getsec(clock);
             for (int i = 0; i < N; i++) {
@@ -264,7 +264,7 @@ void test_pool1()
 
 //random size alloc, free
 int test_slowpool2() {
-    const int N = 10;
+    const int N = 10000;
     int* RandSize = malloc(N * sizeof(int));
 
     void** arr = malloc(MAXarr * sizeof(size_t));
@@ -379,5 +379,5 @@ int test_slowpool1()
 }
 
 int main(){
-	test_slowpool2();
+	test_alloc_main();
 }
