@@ -14,16 +14,19 @@ typedef struct myhashmap myhashmap;
 enum{
 	HASH_SKIP=1,
 };
+#if USE_MISRA==0
 struct mystr {
 	uint32_t hash;
 	uint32_t len;
 	uint8_t ptr[];
 };
-struct myobj {
+#else
+struct mystr {
 	uint32_t hash;
 	uint32_t len;
-	uint8_t ptr[];
+	uint8_t *ptr;
 };
+#endif
 struct myvalue {
 	union {
 		uint64_t u;

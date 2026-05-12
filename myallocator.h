@@ -379,13 +379,13 @@ typedef struct mycachemem {
 
 //얘도 가급적 64B
 
-extern mycachemem g_cachemem;
+extern mycachemem g_CM;
 extern mypoolmanager g_poolmng;
 extern mymutex g_lock;
 
 
 
-extern void* myslowpool_alloc(uint8_t core_id, mysize_t len, mysize_t ms);
+extern void*    myslowpool_alloc(uint8_t core_id, mysize_t len, mysize_t ms);
 extern uint32_t myslowpool_free(void* ptr);
 extern void     myslowpool_destroy();
 extern uint8_t  myslowpool_new(mysize_t max_threshold);
@@ -412,6 +412,7 @@ static uint32_t getpoolidx(uint32_t i) {
     else if (i <= 384)         return 10;
     else if (i <= 512)         return 11;
     else if (i <= 1024)        return 12;
+    else if (i <= 2048)        return 13;
     return 13;
 }
 static uint32_t getpoolsize(uint32_t idx) {
@@ -429,6 +430,7 @@ static uint32_t getpoolsize(uint32_t idx) {
     case 10:       return 384;
     case 11:       return 512;
     case 12:       return 1024;
+    case 13:       return 2048;
     }
     return 1024;
 }
@@ -447,46 +449,50 @@ static uint32_t getpoolsize_from_len(uint32_t i) {
     else if (i <= 384)         return 384;
     else if (i <= 512)         return 512;
     else if (i <= 1024)        return 1024;
+    else if (i <= 2048)        return 2048;
     return 13;
 }
 
 
 static inline uint32_t get_pageno_PH(mypagehead* PH) {
-    return (uint32_t)(PH - g_cachemem.headmem);
+    return s_cast(uint32_t, PH - g_CM.headmem);
 }
 static inline uint32_t get_pageno_ptr(void* ptr) {
-    uintptr_t addr = s_cast(uintptr_t, ptr);
-    return (uint32_t)((addr - s_cast(uintptr_t, g_cachemem.pagemem)) / PAGE_SIZE);
+    uintptr_t addr = to_addr(ptr);
+    return s_cast(uint32_t, (addr - to_addr(g_CM.pagemem)) / PAGE_SIZE);
 }
 
 static inline mypagehead* get_PH_ptr(void* ptr) {
-    uintptr_t addr = s_cast(uintptr_t, ptr);
+    uintptr_t addr = to_addr( ptr);
     const uint32_t pageno = get_pageno_ptr(ptr);
-    return g_cachemem.headmem + pageno;
+    return &g_CM.headmem[pageno];
 }
 
 static inline uint32_t get_elemno_ptr(void* ptr) {
-    uintptr_t addr = s_cast(uintptr_t, ptr);
+    uintptr_t addr = to_addr(ptr);
     const uint32_t pageno
         //= pageno_get_by_ptr(ptr);
-        = ((addr - s_cast(uintptr_t, g_cachemem.pagemem)) / PAGE_SIZE);
-    const uint32_t poolsize = getpoolsize((g_cachemem.headmem + pageno)->poolidx);
-    return (addr - s_cast(uintptr_t, g_cachemem.pagemem + pageno)) / poolsize;
+        = (addr - to_addr(g_CM.pagemem)) / PAGE_SIZE;
+    const uint32_t poolsize = getpoolsize((&g_CM.headmem[pageno])->poolidx);
+    return (addr - to_addr(&g_CM.pagemem[pageno])) / poolsize;
 }
 
 extern void*    mypool_alloc(mysize_t len);
 extern void     mypool_free(void* ptr);
 extern void     mypool_destroy();
 extern void     mypool_new(mysize_t max_threshold);
+extern void     mypool_dump();
 
+extern void     myarena_new(myarena* alc, mysize_t arena_size);
+extern void*    myarena_alloc(myarena* alc, mysize_t len);
+extern void     myarena_free(myarena* alc);
+extern void     myarena_reset_all(myarena* alc);
+extern void     myarena_check_new(myarena* alc, myarena_check* checkpoint);
+extern void     myarena_rewind(myarena* alc, myarena_check* checkpoint);
+extern void*    myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa);
 
-extern void  myarena_new(myarena* alc, mysize_t arena_size);
-extern void* myarena_alloc(myarena* alc, mysize_t len);
-extern void  myarena_free(myarena* alc);
-extern void  myarena_reset_all(myarena* alc);
-extern void  myarena_check_new(myarena* alc, myarena_check* checkpoint);
-extern void  myarena_rewind(myarena* alc, myarena_check* checkpoint);
-extern void* myarena_realloc(myarena* alc, void* p, mysize_t old_capa, mysize_t new_capa);
+extern void     myarena_dump(myarena* alc);
+
 
 MY_EXTERN_END
 

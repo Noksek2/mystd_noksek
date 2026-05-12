@@ -8,7 +8,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 mypoolmanager g_poolmng;
 mymutex g_lock;
 uint8_t g_PM_id;
-mycachemem g_cachemem;
 void mystd_init() {
     mymutex_init(&g_lock);
     //uint8_t id = myslowpool_new(_16MB);//128MB
@@ -53,39 +52,5 @@ void mystd_print_system_info() {
     puts("-------------------------------------");
 }
 
-static char printable(char c) {
-	if (c == '_' || (c >= '0' && c <= '9') ||
-		(c >= 'a' && c <= 'z')
-		|| (c >= 'A' && c <= 'Z')) return c;
-	return ' ';
-}
 
 
-void myarena_dump(myarena* alc) {
-	puts("ARENA DUMP ");
-	mypage* pg = alc->head;
-	while (pg != NULL) {
-		printf("(%u / %u) \n", pg->len, pg->capa);
-		for (mysize_t i = 0; i < pg->len; i++) {
-			printf("%02X ", pg->ptr[i]);
-			if ((i + 1) % 16 == 0) {
-				printf("| ");
-				for (int j = i - 15; j <= i; j++)
-					printf("%c", printable((char)(pg->ptr[j])));
-				puts("");
-			}
-		}
-
-		pg = pg->next;
-	}
-}
-
-void mypool_dump() {
-	mysizehead* SH;
-	for (int i = 0; i < POOL_SIZE_MAX; i++) {
-		printf("%d\n", i);
-		SH = &g_cachemem.cachehead->SH[i];
-		SH->curr;
-		SH->hole;
-	}
-}

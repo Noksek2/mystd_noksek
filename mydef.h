@@ -15,6 +15,8 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include <stdlib.h>
 
 /*compiler*/
+#define USE_MISRA 0
+#define USE_GOTO 1
 
 #if defined(_MSC_VER) 
 #define MY_COMPILER_MSVC 1
@@ -117,6 +119,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #endif
 
 
+#define to_addr(DAT) ((uintptr_t)(DAT))
 
 #if MY_OS_WIN
 #include <Windows.h>
