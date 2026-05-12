@@ -1,5 +1,5 @@
 #include "mystd.h"
-enum { MAXarr = 100001 };
+enum { MAXarr = 100001, MAXSIZE=10000 };
 //uint32_t g_slowloop = 0;
 //int g_path[5];
 
@@ -22,13 +22,62 @@ void print_binary(const uint32_t num) {
     puts(buf);
 }
 
-#define MAXSIZE 5000
-int main() {
-    test_alloc_main();
-    //test_pool2();
-    return 0;
-}
+void pushpop() {
+    const int N = 10000;
+    void** arr = malloc(N * sizeof(size_t));
+    mypool_new(_4MB);
+    uint32_t len = getpoolsize(POOL_SIZE_MAX - 1u);
+    double st, en;
+    myclock_t clock;
+    clock = myclock_setclock();
+    st = myclock_getsec(clock);
 
+    arr[0] = mypool_alloc(len);
+        arr[1] = mypool_alloc(len);
+    for (int i = 0; i < N; i++) {
+
+       // mypool_dump();
+        arr[2] = mypool_alloc(len);
+        arr[3] = mypool_alloc(len);
+        //mypool_dump();
+        mypool_free(arr[0]);
+        mypool_free(arr[1]);
+        //mypool_dump();
+        arr[0] = mypool_alloc(len);
+        arr[1] = mypool_alloc(len);
+       // mypool_dump();
+        mypool_free(arr[2]);
+        mypool_free(arr[3]);
+        //mypool_dump();
+    }
+   
+    en = myclock_getsec(clock);
+    //mypool_dump();
+    printf("%.4lf\t", en - st);
+
+    st = myclock_getsec(clock);
+    mypool_destroy();
+
+    arr[0] = malloc(len);
+    arr[1] = malloc(len);
+    for (int i = 0; i < N; i++) {
+
+        // mypool_dump();
+        arr[2] = malloc(len);
+        arr[3] = malloc(len);
+        //mypool_dump();
+        free(arr[0]);
+        free(arr[1]);
+        //mypool_dump();
+        arr[0] = malloc(len);
+        arr[1] = malloc(len);
+        // mypool_dump();
+        free(arr[2]);
+        free(arr[3]);
+    }
+    en = myclock_getsec(clock);
+    printf("%.4lf\t\n", en - st);
+}
 
 void test_alloc_main()
 {
@@ -114,10 +163,10 @@ void test_pool2()
 
     //printf("%u\t%u\t", N, M);
     int sum;
-    for (int T = 0; T < 10; T++) {
+    for (int T = 0; T < POOL_SIZE_MAX; T++) {
         sum = 0;
         for (int i = 0; i < N; i++) {
-            RandSize[i] = getpoolsize(rand() % (POOL_8B + T + 1));
+            RandSize[i] = getpoolsize(rand() % (T + 1));
             sum += RandSize[i];
         }
         printf("%.3lf\t", (double)sum / (double)N);
@@ -215,7 +264,7 @@ void test_pool1()
 
 //random size alloc, free
 int test_slowpool2() {
-    const int N = 100000;
+    const int N = 10;
     int* RandSize = malloc(N * sizeof(int));
 
     void** arr = malloc(MAXarr * sizeof(size_t));
@@ -223,6 +272,7 @@ int test_slowpool2() {
     myclock_t clock;
     clock = myclock_setclock();
     mystd_init();
+	g_PM_id = myslowpool_new(_64MB*4);
     void* ptr;
     double st, en;
     myarena arena;
@@ -282,6 +332,7 @@ int test_slowpool1()
     myclock_t clock;
     clock = myclock_setclock();
     mystd_init();
+	g_PM_id = myslowpool_new(_64MB*4);
     void* ptr;
     double st, en;
     myarena arena;
@@ -296,7 +347,7 @@ int test_slowpool1()
                 arr[i] = myslowpool_alloc(g_PM_id, 1, M);
             }
             for (int i = 0; i < N; i++) {
-                mypool_free(arr[i]);
+                myslowpool_free(arr[i]);
             }
             en = myclock_getsec(clock);
             printf("%.4lf\t", en - st);
@@ -327,35 +378,6 @@ int test_slowpool1()
     mystd_destroy();
 }
 
-/*
-N   msb     res         bin(N-1)        
-0   0              
-1   0              
-2   1              
-3   1              
-4   2              
-5   2              
-6   2              
-7   2              
-8   3              
-9   3       (8)    
-10  3              
-11  3              
-12  3              
-13  3              
-14  3              
-15  3              
-16  4              
-17  4              
-18  4              
-19  4              
-20  4              
-21  4              
-22  4              
-23  4              
-24  4              
-010000
-M=msb(N-1)
-
-
-*/
+int main(){
+	test_slowpool2();
+}

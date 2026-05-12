@@ -16,7 +16,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define MY_LOG_LEVEL_TEST 3
 
 #ifndef MY_LOG_LEVEL
-#ifdef NDEBUG
+#ifndef _DEBUG
 #define MY_LOG_LEVEL MY_LOG_LEVEL_OFF
 #else
 #define MY_LOG_LEVEL MY_LOG_LEVEL_INFO

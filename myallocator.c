@@ -751,7 +751,7 @@ void mypool_destroy() {
 
 
 
-void mypool_dump(boolean is_showall) {
+void mypool_dump() {
     mysizehead* SH;
     printf("[MYPOOL DUMP] CoreID:%u PageCnt:(%u/%u)\n", 0u, g_CM.page_cnt, g_CM.commit_page_cnt);
     mypagehead* FP;
@@ -766,7 +766,7 @@ void mypool_dump(boolean is_showall) {
 
     for (int i = 0; i < POOL_SIZE_MAX; i++) {
         printf("pool%uB\n", getpoolsize(i));
-        SH = &g_CM.cachehead->SH[i].curr;
+        SH = &g_CM.cachehead->SH[i];
         printf("Page Curr : ");
         if (SH->curr)
             printf("(#%u, %u/%u)\n", (SH->curr - g_CM.headmem),

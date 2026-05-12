@@ -1,6 +1,7 @@
 CC = gcc
-CFLAGS = -O2 -D_DEBUG
-TARGET = bin/mystd_test
+CFLAGS = -g -O0 -D_DEBUG
+#CFLAGS = -O2 
+TARGET = bin/test2
 BINDIR = bin_linux
 OUTDIR = bin
 

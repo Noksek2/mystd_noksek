@@ -6,7 +6,7 @@ setlocal enabledelayedexpansion
 
 set CC=gcc
 set CFLAGS=-O2 -D_DEBUG
-set TARGET=bin\mystd_test.exe
+set TARGET=bin\test2.exe
 set BINDIR=bin_win
 
 set OBJS=%BINDIR%\mystd.o %BINDIR%\myallocator.o %BINDIR%\main.o
