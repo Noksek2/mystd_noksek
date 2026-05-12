@@ -525,11 +525,16 @@ extern void mycachemem_commit(mycachehead* CH) {
 }
 static void mypagehead_init_by_SH(mysizehead* SH) {
     mypagehead* PH = SH->curr;
-    memset(PH, 0, sizeof(mypagehead));
+    PH->nextPH = 0u;
+    PH->prevPH = 0u;
+    PH->elem_cnt = 0u;
+    PH->elem_empty = 0u;
+    PH->elem_total = PAGE_SIZE / SH->poolsize;
+    PH->nextoff = 0u;
     PH->poolidx = SH->poolidx;
     PH->poolsize = SH->poolsize;
     PH->pagetag = PAGE_TAG_USING;
-    PH->elem_total = PAGE_SIZE / SH->poolsize;
+   
     MY_LOG_TEST("NEW POOL PAGEHEAD size:%u (idx:%u, elem:%u)", PH->poolsize, PH->poolidx, PH->elem_total);
 }
 void* mypool_newpage(mysizehead* SH) {
@@ -607,7 +612,7 @@ void* mypool_alloc(mysize_t len) {
     }
 
     PH->pagetag = PAGE_TAG_FULL;
-    if (SH->hole) {
+    if (SH->hole) {//curr->full->hole(clear)->full->hole(clear)->empty(clear)->curr(clear)
         MY_LOG_TEST("PAGE FULL : %X(page no.%u) , FIND HOLE %X(page no.%u)",
                     PH, get_pageno_PH(PH), SH->hole, get_pageno_PH(SH->hole));
         SH->curr = SH->hole;
@@ -617,8 +622,9 @@ void* mypool_alloc(mysize_t len) {
     }
     else if (CM->freepage) {
         PH = CM->freepage;
-        CM->freepage = CM->freepage->nextPH;
         CM->freepage->prevPH = NULL;
+        CM->freepage = CM->freepage->nextPH;
+        
         SH->curr = PH;
         mypagehead_init_by_SH(SH);
         //mypool_freepage_get(CM,SH);
@@ -644,6 +650,24 @@ void* mypool_alloc(mysize_t len) {
 }
 void mypool_alloc_by() {
 
+}
+static void mypool_freepage_push(mypagehead* const PH, mycachemem* const CM,mypagehead** hole) {
+	
+    if (PH->prevPH == NULL) {
+        (*hole) = PH->nextPH;
+    }
+    else {
+		PH->prevPH->nextPH = PH->nextPH;
+	}
+	if (PH->nextPH) {
+		PH->nextPH->prevPH = PH->prevPH;
+	}
+	PH->pagetag = PAGE_TAG_EMPTY;
+	if (CM->freepage) {
+		PH->prevPH = NULL;
+		PH->nextPH = CM->freepage;
+	}
+	CM->freepage = PH;
 }
 void mypool_free(void* ptr) {
     //ptr -> PagePtr
@@ -672,35 +696,25 @@ void mypool_free(void* ptr) {
                 (to_addr(ptr) - to_addr(&CM->pagemem[page_no])) / getpoolsize(PH->poolidx));
 
 
+    mypagehead** hole = &CM->cachehead->SH[PH->poolidx].hole;
     //HOLE
     if (PH->elem_empty == PH->elem_total) {
         if (PH->pagetag == PAGE_TAG_USING) {
             return;
         }
-        else if (PH->prevPH == NULL) {
-            return;
+        else{
+            mypool_freepage_push(PH, CM, hole);
         }
-        else {
-            PH->prevPH->nextPH = PH->nextPH;
-        }
-        if (PH->nextPH) {
-            PH->nextPH->prevPH = PH->prevPH;
-        }
-        PH->pagetag = PAGE_TAG_EMPTY;
-        if (CM->freepage) {
-            PH->prevPH = NULL;
-            PH->nextPH = CM->freepage;
-        }
-        CM->freepage = PH;
     }
     else if (PH->pagetag == PAGE_TAG_FULL) {
-        mypagehead** hold = &CM->cachehead->SH[PH->poolidx].hole;
-        if (*hold) {
-            PH->nextPH = *hold;
+        
+        if (*hole) {
+            //
+            PH->nextPH = *hole;
             PH->nextPH->prevPH = PH;
             PH->prevPH = NULL;
         }
-        *hold = PH;
+        *hole = PH;
         PH->pagetag = PAGE_TAG_HOLE;
     }
     //
@@ -737,12 +751,36 @@ void mypool_destroy() {
 
 
 
-void mypool_dump() {
+void mypool_dump(boolean is_showall) {
     mysizehead* SH;
+    printf("[MYPOOL DUMP] CoreID:%u PageCnt:(%u/%u)\n", 0u, g_CM.page_cnt, g_CM.commit_page_cnt);
+    mypagehead* FP;
+
+    FP = g_CM.freepage;
+	printf("freepage : ");
+	while (FP != NULL) {
+		printf("%llX(no.%u) ->", to_addr(FP), (FP - g_CM.headmem));
+        FP = FP->nextPH;
+	}
+	puts("NULL");
+
     for (int i = 0; i < POOL_SIZE_MAX; i++) {
-        printf("%d\n", i);
+        printf("pool%uB\n", getpoolsize(i));
         SH = &g_CM.cachehead->SH[i].curr;
-        SH->curr;
-        SH->hole;
+        printf("Page Curr : ");
+        if (SH->curr)
+            printf("(#%u, %u/%u)\n", (SH->curr - g_CM.headmem),
+                   SH->curr->elem_cnt - SH->curr->elem_empty, SH->curr->elem_total);
+        else puts("NULL");
+        printf("Page Hole : ");
+        FP = SH->hole;
+        while (FP != NULL) {
+            printf("(#%u, %u/%u) ->", (FP - g_CM.headmem),
+                   FP->elem_cnt- FP->elem_empty, FP->elem_total);
+            FP = FP->nextPH;
+        }
+        puts("NULL");
+
+        puts("");
     }
 }
