@@ -80,4 +80,6 @@ Executable file `mystd_test` would be created in /bin/ directory
 
 sorry for no msvc yet
 
-###
+### Codeberg
+`v0.3.0` Beta testing is currently being conducted by codeberg repo.
+- https://codeberg.org/Noksek/mystd_noksek
