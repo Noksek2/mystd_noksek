@@ -4,7 +4,7 @@ enum { MAXarr = 100001 };
 //int g_path[5];
 
 //random size alloc, free
-int test_alloc2() {
+int test_alloc2(void) {
 	const int N = 100000;
 	int* RandSize = malloc(N * sizeof(int));
 
@@ -66,8 +66,8 @@ int test_alloc2() {
 	mystd_destroy();
 	return 0;
 }
-int test_alloc1()
-{
+
+int test_alloc1(void) {
 	int* arr[MAXarr] = { 0, };
 	myclock_t clock;
 	clock = myclock_setclock();
@@ -117,7 +117,7 @@ int test_alloc1()
 	mystd_destroy();
 }
 
-int main() {
+int main(void) {
 	test_alloc2();
 	return 0;
 }
