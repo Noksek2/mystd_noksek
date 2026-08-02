@@ -12,7 +12,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include "myallocator.h"
 
 
-#define MYSTD_VERSION_MAJOR 0 
+#define MYSTD_VERSION_MAJOR 0
 #define MYSTD_VERSION_MINOR 2
 #define MYSTD_VERSION_PATCH 0
 #define MYSTD_VERSION (MYSTD_VERSION_MAJOR*10000\
@@ -22,12 +22,12 @@ Is there any problem in this code, Please use Issues for bug reports.
 MY_EXTERN_START
 extern uint8_t g_PM_id;
 
-extern void  mystd_init();
-extern void  mystd_destroy();
+extern void  mystd_init(void);
+extern void  mystd_destroy(void);
 //extern void* mystd_alloc(mysize_t len, mysize_t ms);
 //extern void* mystd_alloc_id(uint8_t core_id, mysize_t len, mysize_t ms);
 //extern void  mystd_free(void* ptr);
-extern void  mystd_print_system_info();
+extern void  mystd_print_system_info(void);
 
 extern void myarena_dump(myarena* alc);
 MY_EXTERN_END
