@@ -14,7 +14,7 @@ OBJECTS = $(patsubst %.c,$(BINDIR)/%.o,$(SOURCES))
 DEPENDS = $(patsubst %.c,$(BINDIR)/%.d,$(SOURCES))
 
 ## Targets ##
-.PHONY: all make-dest clean run
+.PHONY: all make-dest clean run help
 
 # Default Goal #
 all: $(TARGET)
