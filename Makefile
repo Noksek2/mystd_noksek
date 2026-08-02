@@ -1,35 +1,50 @@
-CC = gcc
-CFLAGS = -O2 -D_DEBUG
-TARGET = bin/mystd_test
-BINDIR = bin_linux
-OUTDIR = bin
+## Variables ##
+TARGET = $(OUTDIR)/mystd_test
 
-# 오브젝트 파일을 bin_linux 폴더에 생성
-OBJS = $(BINDIR)/mystd.o $(BINDIR)/myallocator.o $(BINDIR)/main.o
+CC := gcc
+CFLAGS := -O2 -D_DEBUG -Wall -W -pedantic
+CFLAGS += -g
+CFLAGS += -MMD -MP
 
-all: $(BINDIR) $(OUTDIR) $(TARGET)
+BINDIR := bin_linux
+OUTDIR := bin
 
-# bin_linux 폴더 생성 (없으면 만듦)
-$(BINDIR):
-	mkdir -p $(BINDIR)
+SOURCES = $(wildcard *.c)
+OBJECTS = $(patsubst %.c,$(BINDIR)/%.o,$(SOURCES))
+DEPENDS = $(patsubst %.c,$(BINDIR)/%.d,$(SOURCES))
 
-# bin 폴더 생성 (없으면 만듦)
-$(OUTDIR):
-	mkdir -p $(OUTDIR)
+## Targets ##
+.PHONY: all make-dest clean run help
 
-# 최종 바이너리 링크 (bin 폴더에 저장)
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+# Default Goal #
+all: $(TARGET)
 
-# 각 소스 파일 컴파일
-$(BINDIR)/main.o: main.c mystd.h
-	$(CC) $(CFLAGS) -c main.c -o $@
+$(TARGET): $(OBJECTS) | make-dest
+	$(CC) $^ $(CFLAGS) -o $@
 
-$(BINDIR)/mystd.o: mystd.c mystd.h myallocator.h
-	$(CC) $(CFLAGS) -c mystd.c -o $@
+$(OBJECTS): $(BINDIR)/%.o: %.c
+	$(CC) $< $(CFLAGS) -c -o $@
 
-$(BINDIR)/myallocator.o: myallocator.c myallocator.h mylog.h mydef.h
-	$(CC) $(CFLAGS) -c myallocator.c -o $@
+make-dest:
+	mkdir -p $(BINDIR) $(OUTDIR)
 
+# Dependency #
+-include $(DEPENDS)
+
+# Tasks #
 clean:
 	rm -rf $(BINDIR) $(OUTDIR)
+
+run:
+	$(TARGET)
+
+help:
+	@echo "   $(call color,1;33,make) - builds the target executable."
+	@echo "   $(call color,1;33,make clean) - removes all the build artifacts."
+	@echo "   $(call color,1;33,make run) - executes the target program."
+	@echo "   $(call color,1;33,make help) - show this manual."
+
+# Canned Recipes #
+define color
+\033[$1m$2\033[0m
+endef
