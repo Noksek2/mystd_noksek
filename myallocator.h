@@ -22,7 +22,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 //#ifdef POOL_UNSAFE
 
-enum {
+typedef enum {
     PAGE_HOLE_DEF = 1,
     PAGE_TAG_EMPTY = 0b00,
     PAGE_TAG_HOLE = 0b01,
@@ -33,7 +33,7 @@ enum {
     SLOWPOOL_PAGE_SIZE = _16KB,
     CACHE_SIZE_DEF = _256KB,
     MYCORE_MAX=8
-};
+} DEF_ENUM;
 
 static const mysize_t _1GB = _1MB * 1024;
 /*
@@ -216,7 +216,7 @@ typedef enum {
     SLOWPOOL_8KB,
     SLOWPOOL_SIZE_MAX,
     
-} ;
+} POOL_SIZE;
 
 static const mysize_t g_poolsize_map16KB[SLOWPOOL_SIZE_MAX]
 = { 8u, 16u, 32u, 64u, 128u,
@@ -463,7 +463,7 @@ static inline uint32_t get_pageno_ptr(void* ptr) {
 }
 
 static inline mypagehead* get_PH_ptr(void* ptr) {
-    uintptr_t addr = to_addr( ptr);
+    //uintptr_t addr = to_addr( ptr);
     const uint32_t pageno = get_pageno_ptr(ptr);
     return &g_CM.headmem[pageno];
 }
@@ -472,9 +472,10 @@ static inline uint32_t get_elemno_ptr(void* ptr) {
     uintptr_t addr = to_addr(ptr);
     const uint32_t pageno
         //= pageno_get_by_ptr(ptr);
-        = (addr - to_addr(g_CM.pagemem)) / PAGE_SIZE;
+        = s_cast(uint32_t, (addr - to_addr(g_CM.pagemem)) / PAGE_SIZE);
     const uint32_t poolsize = getpoolsize((&g_CM.headmem[pageno])->poolidx);
-    return (addr - to_addr(&g_CM.pagemem[pageno])) / poolsize;
+    uintptr_t addr_off =addr - to_addr(&g_CM.pagemem[pageno]);
+    return s_cast(uint32_t, addr_off / poolsize);
 }
 
 extern void*    mypool_alloc(mysize_t len);

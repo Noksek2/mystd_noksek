@@ -93,12 +93,14 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define min(A,B) ((A>B)?(B):(A))
 #endif
 
+#ifndef __cplusplus
 #ifndef true
 #define true 1
 #endif
 
 #ifndef false
 #define false 0
+#endif
 #endif
 
 
@@ -114,9 +116,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define c_cast(T,DAT) ((T)(DAT))
 #endif
 
-#ifndef false
-#define false 0
-#endif
 
 
 #define to_addr(DAT) ((uintptr_t)(DAT))
@@ -242,11 +241,13 @@ static uint32_t find_msb32_idx(uint32_t mask) {
     DWORD index;
     return _BitScanReverse(&index, (DWORD)mask) ? (uint32_t)index : 0u;
 }
+#if MY_ARCH_X64
 static uint32_t find_msb64_idx(uint64_t mask) {
     DWORD index;
     return _BitScanReverse64(&index, (DWORD64)mask) ? (uint32_t)index : 0u;
 }
-#else 
+#endif
+#else
 static uint32_t find_msb32_idx(uint32_t mask) {
     if (mask == 0) return 0;
     return 31 - __builtin_clz(mask);

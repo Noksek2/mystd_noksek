@@ -4,36 +4,40 @@ https://github.com/Noksek2/mystd_noksek Noksek2 v0.3.0
 Is there any problem in this code, Please use Issues for bug reports.
 */
 
+#ifndef __MYOBJ_H__
+#define __MYOBJ_H__
+
 #include "mystd.h"
-typedef struct mystack mystack;
+typedef struct mylist mylist;
 typedef struct mypair mypair;
 typedef struct mystr mystr;
 typedef struct myvalue myvalue;
 typedef struct myhashmap myhashmap;
 
+typedef struct mycontext {
+	void* (*alloc)(uint32_t);
+	void (*free)(void*);
+} mycontext;
+
+
 enum{
 	HASH_SKIP=1,
 };
-#if USE_MISRA==0
 struct mystr {
+	char* ptr;
 	uint32_t hash;
 	uint32_t len;
-	uint8_t ptr[];
 };
-#else
-struct mystr {
-	uint32_t hash;
-	uint32_t len;
-	uint8_t *ptr;
-};
-#endif
 struct myvalue {
 	union {
+		int32_t i32;
 		uint64_t u;
 		int64_t i;
+		float f32;
 		double f;
 		struct mystr* str;
 		struct myobj* obj;
+		void* p;
 	};
 };
 struct mypair {
@@ -44,7 +48,7 @@ struct mypair {
 	struct myvalue val;
 };
 
-struct mystack {
+struct mylist {
 	struct myvalue* val;
 	uint32_t len;
 	uint32_t capa;
@@ -67,10 +71,34 @@ static uint32_t make_hash_u8(const char* key, uint32_t length) {
 }
 
 //mystr
-//mystack
+//mylist
 //myhashmap 
 MY_EXTERN_START;
 
+typedef enum {
+	MYOBJ_DEFAULT = 0,
+	MBOBJ_NO_CUSTOM_ALLOC = 1,
+} myobj_flag;
+
+extern mycontext g_ctx;
+static void myobj_init_ctx(const mycontext* ctx) {
+	g_ctx = *ctx;
+}
+static void myobj_init(myobj_flag flag) {
+	mystd_init();
+	mycontext ctx;
+	if (flag == MYOBJ_DEFAULT) {
+		ctx.alloc = mypool_alloc;
+		ctx.free = mypool_free;
+	}
+	else {
+		ctx.alloc = malloc;
+	}
+	myobj_init_ctx(&ctx);
+}
+static void myobj_destroy() {
+	mystd_destroy();
+}
 //mystr
 
 
@@ -78,47 +106,57 @@ MY_EXTERN_START;
 static mystr* mystr_new(const char* buf) {
 	mystr* str;
 	const uint32_t len = strlen(buf);
-	str = mypool_alloc(len + sizeof(mystr));
+	str = (mystr*)g_ctx.alloc(sizeof(mystr));
 	MY_ASSERT_RETURN(str, NULL);
+	str->ptr = (char*)g_ctx.alloc(len);
 	memmove(str->ptr, buf, len);
 	str->hash = make_hash_u8(buf, len);
 	str->len = len;
 	return str;
 }
 static void mystr_destroy(mystr* str) {
-	mypool_free(str);
+	MY_ASSERT(str);
+	g_ctx.free(str);
+	MY_ASSERT(str->ptr);
+	g_ctx.free(str->ptr);
 }
 
 
 
-// mystack
-static mystack mystack_new(uint32_t capa, uint32_t _len) {
-	mystack stack;
-	stack.capa = capa;
-	stack.len = _len;
-	stack.val = mypool_alloc(capa * sizeof(myvalue));
-	MY_ASSERT_RETURN(stack.val, stack);
-	return stack;
+// mylist
+static mylist mylist_new(uint32_t capa, uint32_t _len) {
+	mylist list;
+	list.capa = capa;
+	list.len = _len;
+	list.val = (myvalue*)g_ctx.alloc(capa * sizeof(myvalue));
+	MY_ASSERT_RETURN(list.val, list);
+	return list;
 }
-static mystack mystack_push(mystack* stack, myvalue val){
-	MY_ASSERT(stack->len < stack->capa);
-	stack->val[stack->len++]=val;
+static mylist mylist_push(mylist* list, myvalue val){
+	MY_ASSERT(list->len < list->capa);
+	list->val[list->len++]=val;
 }
-static myvalue mystack_pop(mystack* stack){
-	MY_ASSERT(stack->len);
-	return stack->val[--stack->len];
+static myvalue mylist_pop(mylist* list){
+	MY_ASSERT(list->len);
+	return list->val[--list->len];
 }
-static void mystack_destroy(mystack* stack) {
-	MY_ASSERT(stack->val);
-	mypool_free(stack->val);
+static void mylist_destroy(mylist* list) {
+	MY_ASSERT(list->val);
+	g_ctx.free(list->val);
 }
 
+static boolean myhashmap_is_empty(const mypair* pair) {
+	return (pair->key == NULL);
+}
+static boolean myhashmap_is_dummy(const mypair* pair) {
+	return ((uintptr_t)pair->key == (uintptr_t)HASH_SKIP);
+}
 //myhashmap
 static myhashmap myhashmap_new(uint32_t capa) {
 	myhashmap map;
 	map.capa = capa;
 	map.len = 0u;
-	map.pairs = mypool_alloc(capa * sizeof(mypair));
+	map.pairs = (mypair*)g_ctx.alloc(capa * sizeof(mypair));
 	MY_ASSERT(map.pairs);
 	return map;
 }
@@ -183,7 +221,7 @@ static uint32_t myhashmap_erase(myhashmap* map, mystr* key) {
 		}
 		else if(pairs->key->hash == hash){
 			if (pairs->key == key) {
-				pairs->key = HASH_SKIP;
+				pairs->key = (mystr*)HASH_SKIP;
 				break;
 			}
 		}
@@ -198,15 +236,11 @@ static uint32_t myhashmap_erase(myhashmap* map, mystr* key) {
 	return idx;
 }
 
-
-
-
-
 static void myhashmap_destroy(myhashmap* map) {
 	uint32_t cnt=0u;
 	for(uint32_t i=0u; i < map->capa; i++){
 		if(map->pairs){
-			mypool_free(map->pairs);
+			g_ctx.free(map->pairs);
 			map->pairs=NULL;
 			cnt+=1u;
 		}
@@ -219,7 +253,7 @@ static void myvalue_print(myvalue v) {
 static void myprintf(const char* buf,...) {
 	va_list v;
 	va_start(v, buf);
-	char* pbuf = buf;
+	char* pbuf = (char*)buf;
 	myvalue val;
 
 	while (*pbuf != '\0') {
@@ -253,8 +287,8 @@ static void myprintf(const char* buf,...) {
 MY_EXTERN_END;
 /*
 
-mystack stack=mystack_new(32u,0u);
-stack.
+mylist list=mylist_new(32u,0u);
+list.
 myhashmap map = myhashmap_new(24)
 
 
@@ -265,3 +299,4 @@ g_strpool;
 "XMCVOKSDL"
 
 */
+#endif

@@ -158,7 +158,7 @@ void myarena_dump(myarena* alc) {
             printf("%02X ", pg->ptr[i]);
             if ((i + 1) % 16 == 0) {
                 printf("| ");
-                for (int j = i - 15; j <= i; j++)
+                for (mysize_t j = i - 15; j <= i; j++)
                     printf("%c", printable((char)(pg->ptr[j])));
                 puts("");
             }
@@ -189,9 +189,9 @@ static mysize_t usable_page_size_by_poolidx(const uint32_t poolidx) {
     return SLOWPOOL_PAGE_SIZE - head;
 }
 
-static const uint32_t memsize_to_poolidx(const mysize_t size) {
+static const uint8_t memsize_to_poolidx(const mysize_t size) {
     const uint32_t msb = find_msb32_idx(size);
-    uint8_t poolidx = (msb >= 3 ? msb - 3 : 0);
+    uint8_t poolidx = s_cast(uint8_t, (msb >= 3 ? msb - 3 : 0));
     if ((1u << msb) != size) poolidx += 1u;
 
     if (g_poolsize_map[poolidx] < size)poolidx += 1;
@@ -749,8 +749,6 @@ void mypool_destroy() {
     memset(CM, 0, sizeof(mycachemem));
 }
 
-
-
 void mypool_dump() {
     mysizehead* SH;
     printf("[MYPOOL DUMP] CoreID:%u PageCnt:(%u/%u)\n", 0u, g_CM.page_cnt, g_CM.commit_page_cnt);
@@ -759,7 +757,7 @@ void mypool_dump() {
     FP = g_CM.freepage;
 	printf("freepage : ");
 	while (FP != NULL) {
-		printf("%llX(no.%u) ->", to_addr(FP), (FP - g_CM.headmem));
+		printf("%llX(no.%llu) ->", to_addr(FP), (FP - g_CM.headmem));
         FP = FP->nextPH;
 	}
 	puts("NULL");
@@ -769,13 +767,13 @@ void mypool_dump() {
         SH = &g_CM.cachehead->SH[i];
         printf("Page Curr : ");
         if (SH->curr)
-            printf("(#%u, %u/%u)\n", (SH->curr - g_CM.headmem),
+            printf("(#%llu, %u/%u)\n", (SH->curr - g_CM.headmem),
                    SH->curr->elem_cnt - SH->curr->elem_empty, SH->curr->elem_total);
         else puts("NULL");
         printf("Page Hole : ");
         FP = SH->hole;
         while (FP != NULL) {
-            printf("(#%u, %u/%u) ->", (FP - g_CM.headmem),
+            printf("(#%llu, %u/%u) ->", (FP - g_CM.headmem),
                    FP->elem_cnt- FP->elem_empty, FP->elem_total);
             FP = FP->nextPH;
         }

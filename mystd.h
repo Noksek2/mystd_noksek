@@ -13,8 +13,8 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 
 #define MYSTD_VERSION_MAJOR 0 
-#define MYSTD_VERSION_MINOR 2
-#define MYSTD_VERSION_PATCH 1
+#define MYSTD_VERSION_MINOR 3
+#define MYSTD_VERSION_PATCH 0
 #define MYSTD_VERSION (MYSTD_VERSION_MAJOR*10000\
     +MYSTD_VERSION_MINOR*100 \
     +MYSTD_VERSION_PATCH)
