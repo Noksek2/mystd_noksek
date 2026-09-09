@@ -132,6 +132,7 @@ typedef uint8_t bool;
 #if MY_OS_WIN
 #include <Windows.h>
 #include <immintrin.h>
+#include <intrin.h>
 #elif MY_OS_LINUX
 #include <pthread.h>
 #include <sys/mman.h>
@@ -305,8 +306,11 @@ static int _myclock_getnanosec(myclock_t timer) {
 }
 #endif
 
+
+
 #if MY_OS_WINDOWS
 static bool my_safe_add_u32(const uint32_t a, const uint32_t b, uint32_t* pres) {
+    //_addcarryx_u32()
     return _addcarry_u32(0, a, b, pres);
     
     //const size_t res = (size_t)a + (size_t)b;
