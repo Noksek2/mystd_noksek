@@ -69,6 +69,12 @@ Is there any problem in this code, Please use Issues for bug reports.
 #endif
 
 
+#define GET_PADDING_8(LEN) max(8, (((uint64_t)LEN + 7) & ~(7ULL)))
+#define GET_PADDING_4(LEN) max(4, (((uint64_t)LEN + 3) & ~(3ULL)))
+//max(sizeof(size_t), (((uint64_t)LEN + (sizeof(size_t)-1)) & ~((sizeof(size_t)-1)ULL)))
+
+#define GET_PADDING_U64(LEN) GET_PADDING_8(LEN)
+#define GET_PADDING_U32(LEN) (uint32_t)GET_PADDING_4(LEN)
 
 #if MY_COMPILER_MSVC || MY_COMPILER_GCC
 #elif 
@@ -101,6 +107,9 @@ Is there any problem in this code, Please use Issues for bug reports.
 #ifndef false
 #define false 0
 #endif
+
+typedef uint8_t bool;
+#else
 #endif
 
 
@@ -122,6 +131,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 
 #if MY_OS_WIN
 #include <Windows.h>
+#include <immintrin.h>
 #elif MY_OS_LINUX
 #include <pthread.h>
 #include <sys/mman.h>
@@ -295,7 +305,49 @@ static int _myclock_getnanosec(myclock_t timer) {
 }
 #endif
 
+#if MY_OS_WINDOWS
+static bool my_safe_add_u32(const uint32_t a, const uint32_t b, uint32_t* pres) {
+    return _addcarry_u32(0, a, b, pres);
+    
+    //const size_t res = (size_t)a + (size_t)b;
+    //if (res > UINT32_MAX) { return false; }
+    //*pres = res;
+    //return true;
+    
+}
+static void my_safe_add_max_u32(const uint32_t a, const uint32_t b, const uint32_t max, uint32_t* pres) {
+    if (_addcarry_u32(0, a, b, pres)) {
+        *pres = max;
+    }
+    // const size_t res = (size_t)a + (size_t)b;
+    // if (res > UINT32_MAX) { *pres = max; }
+    // else { *pres = res; }
+}
 
+static bool my_safe_padding_u32(const uint32_t sz, uint32_t* pres) {
+    uint32_t nsz;
+    if (!my_safe_add_u32(sz, 7, &nsz)) { return false; }
+    *pres = nsz & ~7u;
+    return true;
+}
+static void my_safe_padding_safe_u32(const uint32_t sz, const uint32_t max, uint32_t* pres) {
+    uint32_t nsz;
+    if (!my_safe_add_u32(sz, 7, &nsz)) { *pres = max; }
+    *pres = nsz & ~7u;
+}
+#else
+static bool my_safe_add_u32(const uint32_t a, const uint32_t b, uint32_t* pres) {
+    const size_t res = (size_t)a + (size_t)b;
+    if (res > UINT32_MAX) { return false; }
+    *pres = res;
+    return true;
+}
+static void my_safe_add_max_u32(const uint32_t a, const uint32_t b, const uint32_t max, uint32_t* pres) {
+    const size_t res = (size_t)a + (size_t)b;
+    if (res > UINT32_MAX) { *pres = max; }
+    else { *pres = res; }
+}
+#endif
 
 MY_EXTERN_END
 

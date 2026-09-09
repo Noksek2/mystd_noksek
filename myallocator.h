@@ -18,7 +18,8 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define ARENA_64MB (1024*1024*64-sizeof(mypage))
 
 #define ARENA_ALLOC(ALC, T, SZ) (T*)arena_alloc(ALC,sizeof(T)*(SZ))
-#define GET_PADDING(LEN) (((max(1,(LEN)) - 1) / sizeof(uint64_t) + 1) * sizeof(uint64_t))
+
+//(((max(1,(LEN)) - 1) / sizeof(uint64_t) + 1) * sizeof(uint64_t))
 
 //#ifdef POOL_UNSAFE
 
