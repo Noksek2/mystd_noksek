@@ -13,7 +13,7 @@ Is there any problem in this code, Please use Issues for bug reports.
 #include <memory.h>
 #include <time.h>
 #include <stdlib.h>
-
+#include <math.h>
 /*compiler*/
 #define USE_MISRA 0
 #define USE_GOTO 1
@@ -88,7 +88,6 @@ Is there any problem in this code, Please use Issues for bug reports.
 #define MY_EXTERN_START 
 #define MY_EXTERN_END
 #endif
-
 
 
 #ifndef max
