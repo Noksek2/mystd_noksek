@@ -15,6 +15,37 @@ extern void  mystd_destroy();
 
 typedef uint64_t myclock_t;
 ```
+
+
+- macros
+
+| name | type | value | explain | where |
+| --- | --- | --- | --- | --- |
+| MYSTD_VERSION_MAJOR | int | 0 | ver major | mystd.h |
+| MYSTD_VERSION_MINOR | int | 2 | ver minor | mystd.h |
+| MYSTD_VERSION_PATCH | int | 0 | ver patch | mystd.h |
+| MY_COMPILER_MSVC | int | 0(else), 1 (if msvc) | msvc compiler | mydef.h |
+| MY_COMPILER_GCC | int | 0(else), 1 (if gcc) | gcc compiler | mydef.h |
+| MY_COMPILER_CLANG | int | 0(else), 1 (if clang) | clang compiler | mydef.h |
+| MY_COMPILER_UNKNOWN | int | 0(msvc, gcc, clang), 1(else) | unknown compiler | mydef.h |
+| MY_OS_WINDOWS<br> MY_OS_WIN | int | 0(else), 1(windows) | windows OS | mydef.h |
+| MY_OS_LINUX | int | 0(else), 1(linux) | LINUX(Debian, etc) OS | mydef.h |
+| MY_OS_MAC | int | 0(else), 1(mac) | MAC(darwin) OS | mydef.h |
+| MY_OS_UNKNOWN | int | 0(default os), 1(else) | Unknown OS | mydef.h |
+| MY_ARCH_X64 | int | 0, 1(x86_64, AMD64) | x86_64, AMD64 arch | mydef.h |
+| MY_ARCH_X86 | int | 0, 1(x86) | x86 arch | mydef.h |
+| MY_ARCH_ARM | int | 0, 1(ARM) | ARM arch | mydef.h |
+| MY_EXTERN_START <br> MY_EXTERN_END | - | ` #if _cpluspplus ... extern "C" ` | when C++ | mydef.h | 
+
+### mydef.h
+- `MY_COMPILER_MSVC`, `MY_COMPILER_GCC`, `MY_COMPILER_CLANG`, `MY_COMPILER_UNKNOWN`
+- `MY_OS_WIN`, `MY_OS_LINUX`, `MY_OS_MAC`, `MY_OS_UNKNOWN`
+- `MY_ARCH_X64`, `MY_ARCH_X86`, `MY_ARCH_ARM`
+- `INLINE`, `RESTRICT`, `MY_ALIGN(n)`
+- `MY_EXTERN_START`, `MY_EXTERN_END`
+
+
+
 - `void mystd_print_system_info()`
 - `myclock_t myclock_setclock()`
 - `double    myclock_getsec(myclock_t timer)`
@@ -38,12 +69,7 @@ typedef uint64_t myclock_t;
 - `MY_ASSERT(cond)`
 - `MY_LOG_INFO(fmt, ...)`
 
-### mydef.h
-- `MY_COMPILER_MSVC`, `MY_COMPILER_GCC`, `MY_COMPILER_CLANG`, `MY_COMPILER_UNKNOWN`
-- `MY_OS_WIN`, `MY_OS_LINUX`, `MY_OS_MAC`, `MY_OS_UNKNOWN`
-- `MY_ARCH_X64`, `MY_ARCH_X86`, `MY_ARCH_ARM`
-- `INLINE`, `RESTRICT`, `MY_ALIGN(n)`
-- `MY_EXTERN_START`, `MY_EXTERN_END`
+
 
 
 
