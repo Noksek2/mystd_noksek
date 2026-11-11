@@ -1,23 +1,8 @@
-# MyStd (by Noksek)
-## v0.2.0 (UNSTABLE)
-- unstable yet.
-## Apache License 2.0
-## Function/Macro lists
-### mystd.h
-```c
-/*mystd v0.2.0*/
-#define MYSTD_VERSION_MAJOR 0 
-#define MYSTD_VERSION_MINOR 2
-#define MYSTD_VERSION_PATCH 0
+# mystd_noksek docs
+## v0.2.0 (in progress)
+## Macro lists (mydef.h, mylog.h)
 
-extern void  mystd_init();
-extern void  mystd_destroy();
-
-typedef uint64_t myclock_t;
-```
-
-
-- macros
+### Macro (const)
 
 | name | type | value | explain | where |
 | --- | --- | --- | --- | --- |
@@ -36,6 +21,49 @@ typedef uint64_t myclock_t;
 | MY_ARCH_X86 | int | 0, 1(x86) | x86 arch | mydef.h |
 | MY_ARCH_ARM | int | 0, 1(ARM) | ARM arch | mydef.h |
 | MY_EXTERN_START <br> MY_EXTERN_END | - | ` #if _cpluspplus ... extern "C" ` | when C++ | mydef.h | 
+
+```c
+// USING ifdef, indef is NOT RECOMMENDED.
+// use #if, #else instead.
+
+//example
+#if MY_OS_WIN
+  #include <Windows.h>
+#elif MY_OS_LINUX
+  #include <unistd.h>
+#else
+  // I dont know
+#endif
+```
+### Marco Functions
+
+| name | type | explain | where | example |
+| --- | --- | --- | --- | --- |
+| MY_ASSERT(cond) | void(bool) | debugbreak when cond is false | mylog.h | `MY_ASSERT(malloc(128) != NULL);`|
+| MY_BREAK() | void() | debugbreak | mylog.h | `MY_BREAK();`|
+
+## myallocator (myallocator.h)
+- arena allocator (bump allocator)
+- memory pool (not recommended)
+An experimental, Fixed-size small memory allocator exists, but its use is not recommended (performance issues in v0.2).
+
+myallocator is currently at version 0.3; 
+
+performance improvements over msvc have been confirmed. For details, refer to the separate Codeberg link.
+
+## Codes
+### mystd.h
+```c
+/*mystd v0.2.0*/
+#define MYSTD_VERSION_MAJOR 0 
+#define MYSTD_VERSION_MINOR 2
+#define MYSTD_VERSION_PATCH 0
+
+extern void  mystd_init();
+extern void  mystd_destroy();
+
+typedef uint64_t myclock_t;
+```
 
 ### mydef.h
 - `MY_COMPILER_MSVC`, `MY_COMPILER_GCC`, `MY_COMPILER_CLANG`, `MY_COMPILER_UNKNOWN`
@@ -84,7 +112,6 @@ void test_alloc2()
 }
 int main(int argc, char** argv)
 {
-	mystd_
 	test_alloc2();
 	return 0;
 }
@@ -104,7 +131,13 @@ $ ./bin/mystd_test
 ```
 Executable file `mystd_test` would be created in /bin/ directory
 
-sorry for no msvc yet
+- Windows/msvc
+```
+> cl main.cpp /W4 /Zi /Od /EHsc
+```
+
+## Apache License 2.0
+- AI using, github fork ok in `v0.2`, but copying beyond the scope of a license is prohibited.
 
 ### Codeberg
 `v0.3.0` Beta testing is currently being conducted by codeberg repo.
