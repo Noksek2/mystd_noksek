@@ -8,17 +8,17 @@ Is there any problem in this code, Please use Issues for bug reports.
 mypoolmanager g_poolmng;
 mymutex g_lock;
 uint8_t g_PM_id;
-void mystd_init() {
+void mystd_init(void) {
     mymutex_init(&g_lock);
     uint8_t id = mypool_new(_64MB*2);//128MB
     MY_ASSERT(id > 0 && id <= MYCORE_MAX);
     g_PM_id = id;
 }
-void mystd_destroy() {
+void mystd_destroy(void) {
     mypool_destroy();
     mymutex_destroy(&g_lock);
 }
-void mystd_print_system_info() {
+void mystd_print_system_info(void) {
     const char* os_name = "Unknown OS";
     const char* cc_name = "Unknown Compiler";
     // 1. OS 결정
